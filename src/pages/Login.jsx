@@ -1,16 +1,11 @@
 import { useState } from "react";
-
 import { Eye, EyeOff } from "lucide-react";
-
 import StaffAccounts from "../data/StaffAccount";
-
 import clinicLogo from "../assets/clinic.jpg";
-
 import bgclinic from "../assets/bgclinic.jpg";
 
 function Login({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
-
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const handleLogin = (event) => {
@@ -19,7 +14,6 @@ function Login({ onLogin }) {
     const formData = new FormData(event.currentTarget);
 
     const staffId = formData.get("staffId").trim();
-
     const password = formData.get("password");
 
     if (!staffId) {

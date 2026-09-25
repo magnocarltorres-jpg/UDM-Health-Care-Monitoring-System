@@ -74,6 +74,7 @@ function App() {
 
   const handleLogin = (loggedInUser) => {
     setUser(loggedInUser);
+    setShowLogin(false);
     setCurrentPage("dashboard");
   };
 
