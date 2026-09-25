@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import clinicLogo from "../assets/Clinic.jpg";
+import clinicLogo from "../assets/clinic.jpg";
 
 import {
   Users,

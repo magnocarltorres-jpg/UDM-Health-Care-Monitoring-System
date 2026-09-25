@@ -1,4 +1,4 @@
-import clinicLogo from "../assets/Clinic.jpg";
+import clinicLogo from "../assets/clinic.jpg";
 
 function Sidebar({ currentPage, onNavigate, user, onLogout }) {
   const currentUser = user || {
