@@ -4,7 +4,7 @@ import { Eye, EyeOff } from "lucide-react";
 
 import StaffAccounts from "../data/StaffAccount";
 
-import clinicLogo from "../assets/Clinic.jpg";
+import clinicLogo from "../assets/clinic.jpg";
 
 import bgclinic from "../assets/bgclinic.jpg";
 
