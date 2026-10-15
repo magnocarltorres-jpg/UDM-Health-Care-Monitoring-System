@@ -394,6 +394,7 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
     }
 
   
+
 const passwordHash =
   typeof staff.password === "string" ? staff.password : "";
 
@@ -414,16 +415,16 @@ if (!supportedBcryptHash) {
   });
 }
 
-    const passwordMatches = await bcrypt.compare(
-      password,
-      staff.password,
-    );
+const passwordMatches = await bcrypt.compare(
+  password,
+  passwordHash,
+);
 
-    if (!passwordMatches) {
-      return res.status(401).json({
-        message: "Invalid Staff ID or password.",
-      });
-    }
+if (!passwordMatches) {
+  return res.status(401).json({
+    message: "Invalid Staff ID or password.",
+  });
+}
 
     const token = jwt.sign(
       {
