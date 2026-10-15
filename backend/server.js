@@ -393,12 +393,26 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
       });
     }
 
-    if (!/^\$2[aby]\$\d{2}\$/.test(staff.password || "")) {
-      return res.status(500).json({
-        message:
-          "Unsupported password format. Contact the system administrator.",
-      });
-    }
+  
+const passwordHash =
+  typeof staff.password === "string" ? staff.password : "";
+
+const supportedBcryptHash =
+  /^\$2[aby]\$\d{2}\$/.test(passwordHash);
+
+if (!supportedBcryptHash) {
+  console.error("Login password format diagnostic:", {
+    staffId,
+    passwordType: typeof staff.password,
+    passwordLength: passwordHash.length,
+    passwordPrefix: passwordHash.slice(0, 7),
+  });
+
+  return res.status(500).json({
+    message:
+      "Unsupported password format. Contact the system administrator.",
+  });
+}
 
     const passwordMatches = await bcrypt.compare(
       password,
