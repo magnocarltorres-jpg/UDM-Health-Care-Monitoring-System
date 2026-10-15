@@ -1,7 +1,21 @@
 import Sidebar from "../components/Sidebar";
-
-import { ArrowLeft, Edit, Plus, Trash2, User } from "lucide-react";
-
+import {
+  ArrowLeft,
+  Edit,
+  Plus,
+  Trash2,
+  User,
+  CalendarDays,
+  HeartPulse,
+  Thermometer,
+  Activity,
+  Ruler,
+  Weight,
+  ClipboardList,
+  X,
+  GraduationCap,
+  ShieldCheck,
+} from "lucide-react";
 import { useState } from "react";
 
 function PatientProfile({
@@ -20,13 +34,84 @@ function PatientProfile({
     role: "Staff",
   };
 
-  const patientHistory = (clinicHistory || []).filter(
-    (record) => record.patientId === patient?.patientId,
-  );
+  const patientHistory = (clinicHistory || [])
+    .filter((record) => record.patientId === patient?.patientId)
+    .slice()
+    .reverse();
+
+  const detailItems = [
+    { label: "Student Number", value: patient?.studentNumber },
+    { label: "Patient ID", value: patient?.patientId },
+    { label: "Full Name", value: patient?.name },
+    { label: "Course", value: patient?.course },
+    { label: "Year Level", value: patient?.yearLevel },
+    { label: "Age", value: patient?.age },
+    { label: "Sex", value: patient?.sex },
+    { label: "Address", value: patient?.address, fullWidth: true },
+  ];
+
+  const vitalItems = [
+    {
+      label: "Blood Pressure",
+      value: (record) => record.bloodPressure,
+      unit: "",
+      icon: HeartPulse,
+    },
+    {
+      label: "Temperature",
+      value: (record) => record.temperature,
+      unit: "°C",
+      icon: Thermometer,
+    },
+    {
+      label: "Heart Rate",
+      value: (record) => record.heartRate,
+      unit: "bpm",
+      icon: Activity,
+    },
+    {
+      label: "SpO2",
+      value: (record) => record.spo2,
+      unit: "%",
+      icon: HeartPulse,
+    },
+    {
+      label: "Height",
+      value: (record) => record.height,
+      unit: "cm",
+      icon: Ruler,
+    },
+    {
+      label: "Weight",
+      value: (record) => record.weight,
+      unit: "kg",
+      icon: Weight,
+    },
+    {
+      label: "BMI",
+      value: (record) =>
+        record.bmi !== null && record.bmi !== undefined && record.bmi !== ""
+          ? Number(record.bmi).toFixed(2)
+          : null,
+      unit: "",
+      icon: Activity,
+    },
+    {
+      label: "BMI Status",
+      value: (record) => record.bmiStatus,
+      unit: "",
+      icon: ShieldCheck,
+    },
+  ];
+
+  const displayValue = (value) =>
+    value !== null && value !== undefined && value !== ""
+      ? value
+      : "--";
 
   if (!patient) {
     return (
-      <div className="flex min-h-screen bg-slate-50">
+      <div className="flex min-h-screen bg-gray-50">
         <Sidebar
           user={currentUser}
           currentPage={currentPage}
@@ -34,21 +119,26 @@ function PatientProfile({
           onLogout={onLogout}
         />
 
-        <main className="flex flex-1 items-center justify-center p-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-slate-800">
+        <main className="flex min-w-0 flex-1 items-center justify-center p-5 sm:p-8">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-green-100 text-green-900">
+              <User size={30} />
+            </div>
+
+            <h1 className="text-2xl font-extrabold text-gray-900">
               No Patient Selected
             </h1>
 
-            <p className="mt-2 text-slate-500">
-              Please search for a patient first.
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              Please return to the Patients page and select a patient record.
             </p>
 
             <button
               type="button"
               onClick={() => onNavigate("patients")}
-              className="mt-5 rounded-lg bg-green-700 px-5 py-3 font-medium text-white hover:bg-green-800"
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-900 px-5 py-3 font-semibold text-white transition hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-200"
             >
+              <ArrowLeft size={18} />
               Back to Patients
             </button>
           </div>
@@ -58,7 +148,7 @@ function PatientProfile({
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-gray-50">
       <Sidebar
         user={currentUser}
         currentPage={currentPage}
@@ -66,333 +156,323 @@ function PatientProfile({
         onLogout={onLogout}
       />
 
-      <main className="flex-1 p-8">
-        <div className="mb-6">
+      <main className="min-w-0 flex-1">
+        <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
           <button
             type="button"
             onClick={() => onNavigate("patients")}
-            className="mb-5 flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-green-700"
+            className="mb-5 inline-flex items-center gap-2 rounded-lg text-sm font-semibold text-gray-500 transition hover:text-green-900 focus:outline-none focus:ring-2 focus:ring-green-700 focus:ring-offset-4"
           >
             <ArrowLeft size={18} />
             Back to Patients
           </button>
 
-          <div className="flex items-center justify-between">
+          <header className="mb-7 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-slate-800">
+              <p className="mb-2 text-sm font-semibold text-green-800">
+                UDM Health Care Monitoring System
+              </p>
+
+              <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
                 Patient Profile
               </h1>
 
-              <p className="mt-1 text-slate-500">
-                View and manage patient information and clinic history.
+              <p className="mt-2 text-sm text-gray-500 sm:text-base">
+                View patient information and previous clinic visits.
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => onNavigate("edit-patient")}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-3 font-medium text-slate-700 hover:bg-slate-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-green-200 bg-white px-4 py-3 text-sm font-semibold text-green-900 transition hover:bg-green-50 focus:outline-none focus:ring-4 focus:ring-green-100"
               >
-                <Edit size={18} />
+                <Edit size={17} />
                 Edit Patient
               </button>
 
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="flex items-center gap-2 rounded-lg border border-red-700 px-4 py-3 font-medium text-red-600 hover:bg-red-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-4 focus:ring-red-100"
               >
-                <Trash2 size={18} />
+                <Trash2 size={17} />
                 Delete Patient
               </button>
             </div>
-          </div>
-        </div>
+          </header>
 
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center">
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
-              <User size={42} />
-            </div>
+          <section className="mb-6 overflow-hidden rounded-2xl border border-green-100 bg-white shadow-sm">
+            <div className="h-2 bg-green-900" />
 
-            <div>
-              <h2 className="text-2xl font-bold text-slate-800">
-                {patient.name}
-              </h2>
-
-              <p className="mt-1 text-slate-500">
-                Student Number: {patient.studentNumber}
-              </p>
-
-              <p className="mt-1 text-sm text-slate-500">
-                {patient.course} • {patient.yearLevel}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-slate-800">
-              Patient Information
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Basic information about the patient.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <p className="text-sm text-slate-500">Student Number</p>
-
-              <p className="mt-1 font-medium text-slate-800">
-                {patient.studentNumber}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-slate-500">Patient ID</p>
-
-              <p className="mt-1 font-medium text-slate-800">
-                {patient.patientId}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-slate-500">Full Name</p>
-
-              <p className="mt-1 font-medium text-slate-800">{patient.name}</p>
-            </div>
-
-            <div>
-              <p className="text-sm text-slate-500">Course</p>
-
-              <p className="mt-1 font-medium text-slate-800">
-                {patient.course}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-slate-500">Year Level</p>
-
-              <p className="mt-1 font-medium text-slate-800">
-                {patient.yearLevel}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-slate-500">Age</p>
-
-              <p className="mt-1 font-medium text-slate-800">
-                {patient.age || "--"}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-slate-500">Sex</p>
-
-              <p className="mt-1 font-medium text-slate-800">
-                {patient.sex || "--"}
-              </p>
-            </div>
-
-            <div className="md:col-span-2 lg:col-span-3">
-              <p className="text-sm text-slate-500">Address</p>
-
-              <p className="mt-1 font-medium text-slate-800">
-                {patient.address || "--"}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-800">
-                Clinic History
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Previous visits and health assessments.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => onNavigate("assessment")}
-              className="flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2.5 font-medium text-white hover:bg-green-800"
-            >
-              <Plus size={18} />
-              New Visit
-            </button>
-          </div>
-
-          {patientHistory.length === 0 ? (
-            <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-                <User size={26} />
+            <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-7">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-green-100 text-green-900 sm:h-24 sm:w-24">
+                <User size={42} />
               </div>
 
-              <h3 className="font-semibold text-slate-800">
-                No clinic history yet
-              </h3>
+              <div className="min-w-0 flex-1">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-900">
+                  <ShieldCheck size={14} />
+                  Patient Record
+                </span>
 
-              <p className="mt-2 max-w-md text-sm text-slate-500">
-                This patient has no recorded clinic visits or assessments yet.
+                <h2 className="mt-3 break-words text-xl font-extrabold text-gray-900 sm:text-2xl">
+                  {displayValue(patient.name)}
+                </h2>
+
+                <div className="mt-2 flex flex-col gap-2 text-sm text-gray-500 sm:flex-row sm:flex-wrap sm:gap-x-5">
+                  <span>
+                    Student Number:{" "}
+                    <strong className="font-semibold text-gray-700">
+                      {displayValue(patient.studentNumber)}
+                    </strong>
+                  </span>
+
+                  <span>
+                    Patient ID:{" "}
+                    <strong className="font-semibold text-gray-700">
+                      {displayValue(patient.patientId)}
+                    </strong>
+                  </span>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                  <GraduationCap size={17} className="text-green-800" />
+                  <span>
+                    {[patient.course, patient.yearLevel]
+                      .filter(Boolean)
+                      .join(" • ") || "Academic details unavailable"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-100 px-5 py-5 sm:px-6">
+              <h2 className="text-lg font-bold text-gray-900">
+                Patient Information
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Basic details associated with this patient.
               </p>
             </div>
-          ) : (
-            <div className="divide-y divide-slate-200">
-              {patientHistory
-                .slice()
-                .reverse()
-                .map((record) => (
-                  <div key={record.id} className="p-6">
-                    <div className="mb-5 flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-slate-800">
-                          Health Assessment
-                        </h3>
 
-                        <p className="mt-1 text-sm text-slate-500">
-                          {record.date} • {record.time}
-                        </p>
+            <div className="grid grid-cols-1 gap-5 p-5 sm:grid-cols-2 sm:gap-6 sm:p-6 lg:grid-cols-3">
+              {detailItems.map((item) => (
+                <div
+                  key={item.label}
+                  className={item.fullWidth ? "sm:col-span-2 lg:col-span-3" : ""}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    {item.label}
+                  </p>
+
+                  <p className="mt-2 break-words text-sm font-semibold text-gray-800 sm:text-base">
+                    {displayValue(item.value)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-4 border-b border-gray-100 px-5 py-5 sm:px-6 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
+                  <ClipboardList size={21} className="text-green-900" />
+                  Clinic History
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Previous visits and health assessments.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onNavigate("assessment")}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-200 sm:w-auto"
+              >
+                <Plus size={18} />
+                New Visit
+              </button>
+            </div>
+
+            {patientHistory.length === 0 ? (
+              <div className="flex min-h-64 flex-col items-center justify-center px-5 py-12 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-green-50 text-green-800">
+                  <CalendarDays size={29} />
+                </div>
+
+                <h3 className="font-bold text-gray-900">
+                  No Clinic History Yet
+                </h3>
+
+                <p className="mt-2 max-w-md text-sm leading-6 text-gray-500">
+                  No clinic visits or assessments have been recorded for this
+                  patient.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => onNavigate("assessment")}
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-green-900 transition hover:bg-green-50"
+                >
+                  <Plus size={17} />
+                  Record a Visit
+                </button>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {patientHistory.map((record, index) => (
+                  <article
+                    key={record.id ?? `${record.date}-${record.time}-${index}`}
+                    className="p-4 sm:p-6"
+                  >
+                    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-100 text-green-900">
+                          <HeartPulse size={22} />
+                        </div>
+
+                        <div>
+                          <h3 className="font-bold text-gray-900">
+                            Health Assessment
+                          </h3>
+
+                          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-gray-500">
+                            <CalendarDays size={15} />
+                            {displayValue(record.date)}
+                            <span>•</span>
+                            {displayValue(record.time)}
+                          </p>
+                        </div>
                       </div>
+
+                      <span className="w-fit rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-900">
+                        Visit {patientHistory.length - index}
+                      </span>
                     </div>
 
-                    <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-                      <div>
-                        <p className="text-sm text-slate-500">Blood Pressure</p>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {vitalItems.map((item) => {
+                        const Icon = item.icon;
+                        const value = item.value(record);
 
-                        <p className="mt-1 font-medium text-slate-800">
-                          {record.bloodPressure || "--"}
-                        </p>
-                      </div>
+                        return (
+                          <div
+                            key={item.label}
+                            className="min-w-0 rounded-xl border border-gray-100 bg-gray-50 p-4"
+                          >
+                            <div className="flex items-center gap-2 text-gray-500">
+                              <Icon size={16} className="shrink-0 text-green-800" />
+                              <p className="text-xs font-medium">
+                                {item.label}
+                              </p>
+                            </div>
 
-                      <div>
-                        <p className="text-sm text-slate-500">Temperature</p>
-
-                        <p className="mt-1 font-medium text-slate-800">
-                          {record.temperature || "--"} °C
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-slate-500">Heart Rate</p>
-
-                        <p className="mt-1 font-medium text-slate-800">
-                          {record.heartRate || "--"} bpm
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-slate-500">SpO2</p>
-
-                        <p className="mt-1 font-medium text-slate-800">
-                          {record.spo2 || "--"} %
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-slate-500">Height</p>
-
-                        <p className="mt-1 font-medium text-slate-800">
-                          {record.height || "--"} cm
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-slate-500">Weight</p>
-
-                        <p className="mt-1 font-medium text-slate-800">
-                          {record.weight || "--"} kg
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-slate-500">BMI</p>
-
-                        <p className="mt-1 font-medium text-slate-800">
-                          {record.bmi !== null && record.bmi !== undefined
-                            ? Number(record.bmi).toFixed(2)
-                            : "--"}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-slate-500">BMI Status</p>
-
-                        <p className="mt-1 font-medium text-slate-800">
-                          {record.bmiStatus || "--"}
-                        </p>
-                      </div>
+                            <p className="mt-2 break-words text-base font-bold text-gray-900">
+                              {displayValue(value)}
+                              {value !== null &&
+                                value !== undefined &&
+                                value !== "" &&
+                                item.unit
+                                ? ` ${item.unit}`
+                                : ""}
+                            </p>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {record.reason && (
-                      <div className="mt-6 border-t border-slate-200 pt-5">
-                        <p className="text-sm text-slate-500">
+                      <div className="mt-5 rounded-xl border border-green-100 bg-green-50/50 p-4">
+                        <p className="text-xs font-bold uppercase tracking-wide text-green-900">
                           Reason for Visit
                         </p>
 
-                        <p className="mt-2 font-medium text-slate-800">
+                        <p className="mt-2 break-words text-sm leading-6 text-gray-700">
                           {record.reason}
                         </p>
                       </div>
                     )}
 
                     {record.notes && (
-                      <div className="mt-5">
-                        <p className="text-sm text-slate-500">
+                      <div className="mt-4 rounded-xl border border-gray-100 p-4">
+                        <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
                           Additional Notes
                         </p>
 
-                        <p className="mt-2 text-sm leading-6 text-slate-700">
+                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
                           {record.notes}
                         </p>
                       </div>
                     )}
-                  </div>
+                  </article>
                 ))}
-            </div>
-          )}
-        </div>
-
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-              <h2 className="text-xl font-bold text-slate-800">
-                Delete Patient
-              </h2>
-
-              <p className="mt-3 text-sm leading-6 text-slate-500">
-                Are you sure you want to delete this patient? This action cannot
-                be undone.
-              </p>
-
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="rounded-lg border border-slate-300 px-5 py-3 font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  onClick={onDeletePatient}
-                  className="rounded-lg bg-red-600 px-5 py-3 font-medium text-white hover:bg-red-700"
-                >
-                  Delete Patient
-                </button>
               </div>
+            )}
+          </section>
+        </div>
+      </main>
+
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-950/50 p-4 backdrop-blur-sm"
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-patient-title"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl sm:p-7"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-red-600">
+              <Trash2 size={24} />
+            </div>
+
+            <h2
+              id="delete-patient-title"
+              className="text-xl font-extrabold text-gray-900"
+            >
+              Delete Patient?
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-gray-500">
+              Are you sure you want to delete{" "}
+              <strong className="text-gray-800">
+                {displayValue(patient.name)}
+              </strong>
+              ? This action may permanently remove the patient record and could
+              affect associated clinic history.
+            </p>
+
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-gray-100"
+              >
+                <X size={17} />
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={onDeletePatient}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-200"
+              >
+                <Trash2 size={17} />
+                Delete Patient
+              </button>
             </div>
           </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
 }

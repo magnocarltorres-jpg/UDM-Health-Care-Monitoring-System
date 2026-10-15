@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+.env
+.env.*
+!.env.example
+
+backend/check-password-format.js
+backend/create-admin.cjs
+backend/test-bcrypt.js
