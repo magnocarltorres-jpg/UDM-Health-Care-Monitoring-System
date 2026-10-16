@@ -65,12 +65,13 @@ const supabase = createClient(
 
 const nursePhotoBucket = "nurse-profiles";
 
+
 const allowedOrigins = (
   process.env.CORS_ORIGINS ||
   "http://localhost:5173,http://127.0.0.1:5173"
 )
   .split(",")
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
 
 app.use(
@@ -80,10 +81,17 @@ app.use(
         return callback(null, true);
       }
 
+      console.error("CORS blocked origin:", origin);
       return callback(new Error("Origin not allowed by CORS."));
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Cache-Control",
+      "Pragma",
+    ],
+    optionsSuccessStatus: 204,
   }),
 );
 
