@@ -201,9 +201,9 @@ function Assessment({
     setIsSaving(true);
 
     try {
-      const API_URL = (
-        import.meta.env.VITE_API_URL || "http://localhost:5000"
-      ).replace(/\/+$/, "");
+   const API_URL = (
+  import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
+).replace(/\/+$/, "");
 
       const response = await fetch(`${API_URL}/api/assessments`, {
         method: "POST",

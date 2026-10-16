@@ -17,7 +17,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 
-const API_URL = `${(import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/+$/, "")}/api/assessments`;
+const API_URL = `${(import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com").replace(/\/+$/, "")}/api/assessments`;
 
 const emptyForm = {
   height: "",

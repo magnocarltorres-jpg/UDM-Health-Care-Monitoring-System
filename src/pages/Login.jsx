@@ -5,7 +5,7 @@ import clinicLogo from "../assets/clinic.jpg";
 import bgclinic from "../assets/bgclinic.jpg";
 
 const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000"
+  import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
 ).replace(/\/+$/, "");
 
 function Login({ onLogin }) {

@@ -18,7 +18,7 @@ import ChangePassword from "./pages/ChangePassword";
 
 
 const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000"
+  import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
 ).replace(/\/+$/, "");
 
 async function readResponse(response) {
@@ -185,7 +185,7 @@ function App() {
           console.error(
             "Unable to verify account status:",
             result.message || response.status,
-          );
+          )
           return;
         }
 

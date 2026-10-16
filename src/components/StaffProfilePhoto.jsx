@@ -2,9 +2,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Trash2, UserRound, LoaderCircle } from "lucide-react";
 
+
 const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000"
+  import.meta.env.VITE_API_URL ||
+  "https://udm-health-care-api.onrender.com"
 ).replace(/\/+$/, "");
+
 
 export default function StaffProfilePhoto({
   user,

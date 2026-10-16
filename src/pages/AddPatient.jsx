@@ -34,7 +34,7 @@ function AddPatient({
     setSaving(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/patients", {
+      const response = await fetch("https://udm-health-care-api.onrender.com/api/patients", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
