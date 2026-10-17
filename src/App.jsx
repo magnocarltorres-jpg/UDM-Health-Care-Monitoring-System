@@ -321,7 +321,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [user, mustChangePassword]);
+  }, [user, mustChangePassword, currentPage]);
 
   const handleLogin = (loggedInUser, forcePasswordChange = false) => {
     setUser(loggedInUser);

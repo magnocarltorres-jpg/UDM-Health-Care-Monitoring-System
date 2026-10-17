@@ -441,7 +441,7 @@ function LandingPage({ onLogin }) {
      <footer className="bg-white px-5 py-6 sm:px-8">
   <div className="mx-auto flex max-w-7xl items-center justify-center text-center">
     <p className="text-xs text-slate-500 sm:text-sm">
-      Â© 2026 UDM Health Care Monitoring System. All rights reserved.
+      © 2026 UDM Health Care Monitoring System. All rights reserved.
     </p>
   </div>
 </footer>
