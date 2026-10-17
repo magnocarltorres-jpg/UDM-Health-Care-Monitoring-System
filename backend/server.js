@@ -1403,6 +1403,7 @@ app.delete(
   },
 );
 
+
 app.get(
   "/api/nurses",
   authenticateToken,
@@ -1413,37 +1414,38 @@ app.get(
       const { data, error } = await supabase
         .from("staff_accounts")
         .select("id, staff_id, name, role, profile_image, status")
-        .eq("role", "Nurse")
+        .in("role", ["Nurse", "Doctor"])
         .order("name", { ascending: true });
 
       if (error) {
-        console.error("Nurse lookup failed:", error.message);
+        console.error("Clinic staff lookup failed:", error.message);
 
         return res.status(500).json({
-          message: "Unable to load nurses.",
+          message: "Unable to load clinic staff.",
         });
       }
 
-      const nurses = await Promise.all(
-        (data || []).map(async (nurse) => ({
+      const staff = await Promise.all(
+        (data || []).map(async (member) => ({
           ...mapStaffRecord(
-            nurse,
-            await createProfilePhotoUrl(nurse.profile_image),
+            member,
+            await createProfilePhotoUrl(member.profile_image),
           ),
           assistingPatient: null,
         })),
       );
 
-      return res.json({ nurses });
+      return res.json({ nurses: staff });
     } catch (error) {
-      console.error("Nurse lookup failed:", error.message);
+      console.error("Clinic staff lookup failed:", error.message);
 
       return res.status(500).json({
-        message: "Unable to load nurses.",
+        message: "Unable to load clinic staff.",
       });
     }
   },
 );
+
 
 app.put(
   "/api/staff/:id/photo",

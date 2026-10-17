@@ -94,11 +94,11 @@ function Nurses({
       <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-800">
-            Nurses Directory
+            Clinic Staff Directory
           </h1>
 
           <p className="mt-2 text-slate-500">
-            View clinic nurse accounts, profiles, and account statuses.
+        View clinic doctor and nurse accounts, profiles, and account statuses.
           </p>
         </div>
 
@@ -201,7 +201,7 @@ function Nurses({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold text-slate-800">
-              Clinic Nurses
+              Clinic Staff
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
