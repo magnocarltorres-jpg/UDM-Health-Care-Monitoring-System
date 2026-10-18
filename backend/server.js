@@ -2533,6 +2533,27 @@ const contactLimiter = rateLimit({
   },
 });
 
+function removeDuplicateParagraphs(text) {
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
+  const uniqueParagraphs = [];
+  const seen = new Set();
+
+  for (const paragraph of paragraphs) {
+    const key = paragraph.toLowerCase().replace(/\s+/g, " ");
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueParagraphs.push(paragraph);
+    }
+  }
+
+  return uniqueParagraphs.join("\n\n");
+}
+
 
 app.post("/api/contact-inquiries", contactLimiter, async (req, res) => {
   try {
@@ -2655,7 +2676,7 @@ app.post("/api/contact-inquiries", contactLimiter, async (req, res) => {
             generatedText.length <= 2000 &&
             !/diagnos|prescri|take this medication|dosage/i.test(generatedText)
           ) {
-            aiReply = generatedText;
+            aiReply = removeDuplicateParagraphs(generatedText);
             aiDraftGenerated = true;
           } else {
             console.warn("AI reply was empty or failed safety checks.");
