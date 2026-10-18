@@ -390,9 +390,6 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
                 <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
                   Clinic Records
                 </h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-green-100 sm:text-base">
-                  Manage patient visits and review saved health assessments in one place.
-                </p>
               </div>
 
               <div className="flex shrink-0 items-center gap-3 self-start rounded-xl border border-white/15 bg-white/10 px-4 py-3 sm:self-auto">
@@ -433,7 +430,6 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
                 <div>
                   <p className="text-sm font-medium text-slate-500">All assessments</p>
                   <p className="mt-2 text-3xl font-bold text-slate-900">{records.length}</p>
-                  <p className="mt-1 text-xs text-slate-500">Saved clinic visits</p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-green-800">
                   <FileText size={23} />
@@ -446,9 +442,6 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
                 <div>
                   <p className="text-sm font-medium text-slate-500">Search results</p>
                   <p className="mt-2 text-3xl font-bold text-slate-900">{filteredRecords.length}</p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {query ? "Matching your search" : "Currently displayed"}
-                  </p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                   <Search size={23} />
@@ -461,7 +454,6 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
                 <div>
                   <p className="text-sm font-medium text-slate-500">Record management</p>
                   <p className="mt-2 text-lg font-bold text-slate-900">Patient assessments</p>
-                  <p className="mt-1 text-xs text-slate-500">View, update, or remove records</p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
                   <HeartPulse size={23} />

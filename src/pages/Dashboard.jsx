@@ -184,8 +184,6 @@ function Dashboard({
 
                 <p className="mt-3 max-w-xl text-sm leading-7 text-green-50/80 sm:text-base">
                   Here's today's clinic overview and activity summary.
-                  Manage patient records and keep clinic visits organized
-                  in one place.
                 </p>
 
                 <p className="mt-5 flex items-center gap-2 text-xs font-medium text-green-100/80 sm:text-sm">
@@ -230,10 +228,6 @@ function Dashboard({
               <h2 className="text-lg font-bold text-gray-950">
                 Find a patient
               </h2>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Search using a patient's name, Student Number, or Patient ID.
-              </p>
             </div>
 
             <div className="relative">
@@ -346,10 +340,6 @@ function Dashboard({
               <h2 className="text-lg font-bold text-gray-950">
                 Clinic overview
               </h2>
-
-              <p className="mt-1 text-sm text-gray-500">
-                A summary of the records currently available to the system.
-              </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -404,11 +394,6 @@ function Dashboard({
                 <h2 className="text-xl font-bold text-gray-950">
                   Clinic Metrics Chart
                 </h2>
-
-                <p className="mt-2 text-sm leading-6 text-gray-500">
-                  Compare registered patients, today's visits, and recorded
-                  assessments using the current dashboard totals.
-                </p>
               </div>
 
               <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -462,14 +447,6 @@ function Dashboard({
                   </div>
                 );
               })}
-            </div>
-
-            <div className="mt-7 border-t border-gray-100 pt-4">
-              <p className="text-xs leading-5 text-gray-500">
-                Patient totals come from registered patient records. Visit
-                and assessment totals come from the clinic history currently
-                supplied to the dashboard.
-              </p>
             </div>
           </section>
 
@@ -646,11 +623,6 @@ function Dashboard({
                   No recent activity
                 </h3>
 
-                <p className="mt-2 max-w-md text-sm leading-6 text-gray-500">
-                  Recently recorded visits and assessments will appear here
-                  once they are available in the clinic history.
-                </p>
-
                 <button
                   type="button"
                   onClick={() => onNavigate("patients")}
@@ -706,12 +678,6 @@ function Dashboard({
               </div>
             )}
 
-            <div className="border-t border-gray-100 bg-gray-50/70 px-5 py-3.5 sm:px-6">
-              <p className="text-xs text-gray-500">
-                Displaying up to five recent entries from the clinic history
-                available to this dashboard.
-              </p>
-            </div>
           </section>
 
           <footer className="border-t border-gray-200 py-5 text-center">
