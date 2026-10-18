@@ -2523,6 +2523,164 @@ app.delete(
     }
   },
 );
+const contactLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    message: "Too many inquiries. Please try again in 15 minutes.",
+  },
+});
+
+app.post("/api/contact-inquiries", contactLimiter, async (req, res) => {
+  try {
+    const body = req.body || {};
+
+    const name =
+      typeof body.name === "string" ? body.name.trim() : "";
+    const email =
+      typeof body.email === "string" ? body.email.trim() : "";
+    const subject =
+      typeof body.subject === "string" ? body.subject.trim() : "";
+    const message =
+      typeof body.message === "string" ? body.message.trim() : "";
+
+    if (!name || !email || !subject || !message) {
+      return res.status(400).json({
+        message: "Please complete all contact form fields.",
+      });
+    }
+
+    if (name.length > 120) {
+      return res.status(400).json({
+        message: "Name must not exceed 120 characters.",
+      });
+    }
+
+    if (
+      email.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
+      return res.status(400).json({
+        message: "Please enter a valid email address.",
+      });
+    }
+
+    if (subject.length > 200) {
+      return res.status(400).json({
+        message: "Subject must not exceed 200 characters.",
+      });
+    }
+
+    if (message.length > 5000) {
+      return res.status(400).json({
+        message: "Message must not exceed 5000 characters.",
+      });
+    }
+
+    const { error: insertError } = await supabase
+      .from("contact_inquiries")
+      .insert({
+        name,
+        email,
+        subject,
+        message,
+      });
+
+    if (insertError) {
+      console.error(
+        "Contact inquiry save failed:",
+        insertError.message,
+      );
+
+      return res.status(500).json({
+        message: "Unable to save your inquiry. Please try again.",
+      });
+    }
+
+    if (
+      !process.env.RESEND_API_KEY ||
+      !process.env.CONTACT_EMAIL ||
+      !process.env.EMAIL_FROM
+    ) {
+      console.error("Contact email environment variables are missing.");
+
+      return res.status(201).json({
+        message:
+          "Your inquiry was saved successfully, but email notification is not configured yet.",
+        emailSent: false,
+      });
+    }
+
+    try {
+      const emailResponse = await fetch(
+        "https://api.resend.com/emails",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: process.env.EMAIL_FROM,
+            to: [process.env.CONTACT_EMAIL],
+            reply_to: email,
+            subject: `New UDM Clinic Inquiry: ${subject.replace(/[\r\n]+/g, " ")}`,
+            text: [
+              "A new inquiry was submitted through the UDM Health Care Monitoring System website.",
+              "",
+              `Name: ${name}`,
+              `Email: ${email}`,
+              `Subject: ${subject}`,
+              "",
+              "Message:",
+              message,
+            ].join("\n"),
+          }),
+        },
+      );
+
+      if (!emailResponse.ok) {
+        const emailError = await emailResponse.text();
+
+        console.error(
+          "Contact email delivery failed:",
+          emailResponse.status,
+          emailError,
+        );
+
+        return res.status(201).json({
+          message:
+            "Your inquiry was saved, but the email notification could not be sent.",
+          emailSent: false,
+        });
+      }
+
+      return res.status(201).json({
+        message: "Your inquiry was submitted successfully.",
+        emailSent: true,
+      });
+    } catch (emailError) {
+      console.error(
+        "Contact email request failed:",
+        emailError.message,
+      );
+
+      return res.status(201).json({
+        message:
+          "Your inquiry was saved, but the email notification could not be sent.",
+        emailSent: false,
+      });
+    }
+  } catch (error) {
+    console.error("Contact inquiry failed:", error.message);
+
+    return res.status(500).json({
+      message: "An unexpected error occurred while submitting your inquiry.",
+    });
+  }
+});
 
 app.use("/api", (_req, res) => {
   res.status(404).json({

@@ -15,6 +15,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
+
+const API_URL =
+  import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com";
+
 function LandingPage({ onLogin }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [contactMessage, setContactMessage] = useState("");
@@ -61,12 +65,52 @@ function LandingPage({ onLogin }) {
     setContactMessage("");
   };
 
-  const handleContactSubmit = (event) => {
-    event.preventDefault();
-    setContactMessage(
-      "Your message form is ready, but message delivery has not been connected yet.",
+  const handleContactSubmit = async (event) => {
+  event.preventDefault();
+  setContactMessage("");
+
+  try {
+    const response = await fetch(
+      `${API_URL.replace(/\/+$/, "")}/api/contact-inquiries`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: contactForm.name.trim(),
+          email: contactForm.email.trim(),
+          subject: contactForm.subject.trim(),
+          message: contactForm.message.trim(),
+        }),
+      },
     );
-  };
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Unable to submit your inquiry.",
+      );
+    }
+
+    setContactMessage(
+      data.message || "Your inquiry was submitted successfully.",
+    );
+
+    setContactForm({
+      name: "",
+      email: "",
+      subject: "",
+      message: "",
+    });
+  } catch (error) {
+    setContactMessage(
+      error.message ||
+        "Unable to submit your inquiry. Please try again.",
+    );
+  }
+};
 
   const features = [
     {
@@ -318,7 +362,7 @@ function LandingPage({ onLogin }) {
               </h2>
               <p className="mt-5 max-w-lg leading-8 text-green-100/80">
                 Have a question about the UDM Health Care Monitoring System?
-                Use the contact form to prepare your message.
+              Use the contact form to send an inquiry to the UDM clinic.
               </p>
 
               <div className="mt-8 space-y-4 text-sm text-green-100">
@@ -429,7 +473,7 @@ function LandingPage({ onLogin }) {
                   type="submit"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-900 px-6 py-3.5 font-bold text-white transition hover:bg-green-800"
                 >
-                  Prepare Message
+                  Send Message
                   <ArrowRight size={18} />
                 </button>
               </div>
