@@ -10,7 +10,6 @@ function AddPatient({
   onLogout,
 }) {
   const [studentNumber, setStudentNumber] = useState("");
-  const [patientId, setPatientId] = useState("");
   const [name, setName] = useState("");
   const [course, setCourse] = useState("");
   const [yearLevel, setYearLevel] = useState("");
@@ -40,16 +39,15 @@ function AddPatient({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          studentNumber: studentNumber.trim(),
-          patientId: patientId.trim(),
-          name: name.trim(),
-          course: course.trim(),
-          yearLevel,
-          age,
-          sex,
-          address: address.trim(),
-        }),
+    body: JSON.stringify({
+  studentNumber: studentNumber.trim(),
+  name: name.trim(),
+  course: course.trim(),
+  yearLevel,
+  age: age === "" ? null : Number(age),
+  sex,
+  address: address.trim(),
+}),
       });
 
       const result = await response.json();
