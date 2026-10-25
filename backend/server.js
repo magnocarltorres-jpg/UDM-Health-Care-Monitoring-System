@@ -9,6 +9,7 @@ import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { rateLimit } from "express-rate-limit";
+import nodemailer from "nodemailer";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -352,6 +353,46 @@ function handleStaffPhotoUpload(req, res, next) {
 
 function getTemporaryPassword() {
   return `UDM-${randomUUID()}!`;
+}
+
+const gmailTransporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
+
+async function sendStaffAccountEmail({
+  email,
+  name,
+  staffId,
+  role,
+  temporaryPassword,
+}) {
+  return gmailTransporter.sendMail({
+    from: `"UDM CLINIC" <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: "Your UDM CLINIC Staff Account",
+    text: [
+      `Hello ${name},`,
+      "",
+      "Your UDM CLINIC staff account has been created.",
+      "",
+      "ACCOUNT DETAILS",
+      `Name: ${name}`,
+      `Role: ${role}`,
+      `Staff ID: ${staffId}`,
+      `Temporary Password: ${temporaryPassword}`,
+      "",
+      "Log in using your Staff ID and temporary password.",
+      "You must change your password before accessing the clinic system.",
+      "",
+      "Please keep your account details private.",
+      "",
+      "UDM CLINIC",
+    ].join("\n"),
+  });
 }
 
 app.post("/api/auth/login", loginLimiter, async (req, res) => {
@@ -2104,23 +2145,19 @@ app.post(
       const body = req.body || {};
 
       const name =
-        typeof body.name === "string"
-          ? body.name.trim()
-          : "";
+        typeof body.name === "string" ? body.name.trim() : "";
 
-      const password =
-        typeof body.password === "string"
-          ? body.password
+      const email =
+        typeof body.email === "string"
+          ? body.email.trim().toLowerCase()
           : "";
 
       const role =
-        typeof body.role === "string"
-          ? body.role.trim()
-          : "";
+        typeof body.role === "string" ? body.role.trim() : "";
 
-      if (!name || !password || !role) {
+      if (!name || !email || !role) {
         return res.status(400).json({
-          message: "Name, role, and password are required.",
+          message: "Name, Gmail address, and role are required.",
         });
       }
 
@@ -2130,53 +2167,76 @@ app.post(
         });
       }
 
-      if (password.length < 8) {
+      if (
+        email.length > 254 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      ) {
         return res.status(400).json({
-          message: "Password must contain at least 8 characters.",
+          message: "Enter a valid email address.",
         });
       }
 
       if (!["Nurse", "Doctor"].includes(role)) {
         return res.status(400).json({
-          message: "Invalid staff role.",
+          message:
+            "Invalid staff role. Only Nurse and Doctor accounts can be created here.",
+        });
+      }
+
+      if (
+        !process.env.GMAIL_USER ||
+        !process.env.GMAIL_APP_PASSWORD
+      ) {
+        console.error("Gmail environment variables are missing.");
+
+        return res.status(500).json({
+          message: "Gmail is not configured on the server.",
         });
       }
 
       const {
         data: generatedStaffId,
         error: staffIdError,
-      } = await supabase.rpc("generate_staff_id");
+      } = await supabase.rpc("generate_staff_id", {
+        p_role: role,
+      });
 
       if (
         staffIdError ||
         typeof generatedStaffId !== "string" ||
-        !/^ST-\d{3,}$/.test(generatedStaffId)
+        !/^(NUR|DOC)-\d{3,}$/.test(generatedStaffId)
       ) {
         console.error(
           "Staff ID generation failed:",
-          staffIdError?.message || "Invalid generated Staff ID.",
+          staffIdError?.message ||
+            "Invalid generated Staff ID.",
         );
 
         return res.status(500).json({
-          message:
-            "Unable to generate a Staff ID. Please try again.",
+          message: "Unable to generate a Staff ID. Please try again.",
         });
       }
 
-      const hashedPassword = await bcrypt.hash(password, 12);
+      const temporaryPassword = getTemporaryPassword();
+
+      const hashedPassword = await bcrypt.hash(
+        temporaryPassword,
+        12,
+      );
 
       const { data, error } = await supabase
         .from("staff_accounts")
         .insert({
           staff_id: generatedStaffId,
           name,
+          email,
           role,
           password: hashedPassword,
           status: "Active",
           must_change_password: true,
         })
         .select(
-          "id, staff_id, name, role, profile_image, status, must_change_password",
+          "id, staff_id, name, email, role, profile_image, status, must_change_password",
         )
         .single();
 
@@ -2184,30 +2244,47 @@ app.post(
         if (error.code === "23505") {
           return res.status(409).json({
             message:
-              "A duplicate Staff ID or another unique value was detected. Please try again.",
+              "This email address or Staff ID is already in use.",
           });
         }
 
-        console.error(
-          "Staff creation failed:",
-          error.message,
-        );
+        console.error("Staff creation failed:", error.message);
 
         return res.status(500).json({
           message: "Unable to create the staff account.",
         });
       }
 
+      try {
+        await sendStaffAccountEmail({
+          email,
+          name,
+          staffId: generatedStaffId,
+          role,
+          temporaryPassword,
+        });
+      } catch (emailError) {
+        console.error(
+          "Staff account email failed:",
+          emailError.message,
+        );
+
+        return res.status(201).json({
+          message:
+            "The staff account was created, but the email could not be sent. The account exists; use the Admin Panel to reset the password and arrange secure delivery.",
+          emailSent: false,
+          staff: mapStaffRecord(data),
+        });
+      }
+
       return res.status(201).json({
         message:
-          "Staff account created successfully. The staff member must change the initial password at the next login.",
+          "Staff account created and login details emailed successfully. The staff member must change the temporary password at first login.",
+        emailSent: true,
         staff: mapStaffRecord(data),
       });
     } catch (error) {
-      console.error(
-        "Staff creation failed:",
-        error.message,
-      );
+      console.error("Staff creation failed:", error.message);
 
       return res.status(500).json({
         message: "Unable to create the staff account.",
