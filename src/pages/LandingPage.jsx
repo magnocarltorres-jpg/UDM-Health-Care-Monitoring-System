@@ -22,6 +22,7 @@ const API_URL =
 function LandingPage({ onLogin }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [contactMessage, setContactMessage] = useState("");
+  const [isSubmittingContact, setisSubmittingContact ] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: "",
     email: "",
@@ -65,8 +66,13 @@ function LandingPage({ onLogin }) {
     setContactMessage("");
   };
 
-  const handleContactSubmit = async (event) => {
+
+const handleContactSubmit = async (event) => {
   event.preventDefault();
+
+  if (isSubmittingContact) return;
+
+  setIsSubmittingContact(true);
   setContactMessage("");
 
   try {
@@ -109,8 +115,11 @@ function LandingPage({ onLogin }) {
       error.message ||
         "Unable to submit your inquiry. Please try again.",
     );
+  } finally {
+    setIsSubmittingContact(false);
   }
 };
+
 
   const features = [
     {
@@ -471,10 +480,11 @@ function LandingPage({ onLogin }) {
 
                 <button
                   type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-900 px-6 py-3.5 font-bold text-white transition hover:bg-green-800"
+                  disabled={isSubmittingContact}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-900 px-6 py-3.5 font-bold text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Send Message
-                  <ArrowRight size={18} />
+                  {isSubmittingContact ? "Sending..." : "Send Message"}
+                  {!isSubmittingContact && <ArrowRight size={18} />}
                 </button>
               </div>
             </form>
