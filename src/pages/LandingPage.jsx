@@ -22,7 +22,7 @@ const API_URL =
 function LandingPage({ onLogin }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [contactMessage, setContactMessage] = useState("");
-  const [isSubmittingContact, setisSubmittingContact ] = useState(false);
+const [isSubmittingContact, setIsSubmittingContact] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: "",
     email: "",
@@ -111,10 +111,12 @@ const handleContactSubmit = async (event) => {
       message: "",
     });
   } catch (error) {
-    setContactMessage(
-      error.message ||
-        "Unable to submit your inquiry. Please try again.",
-    );
+  console.error("Contact inquiry submission failed:", error);
+
+  setContactMessage(
+    error.message ||
+      "Unable to submit your inquiry. Please try again.",
+  );
   } finally {
     setIsSubmittingContact(false);
   }
