@@ -30,9 +30,7 @@ const API_URL = (
   "https://udm-health-care-api.onrender.com"
 ).replace(/\/+$/, "");
 
-
 const emptyForm = {
-  staffId: "",
   name: "",
   password: "",
   role: "Nurse",
@@ -89,9 +87,7 @@ function isActiveAccount(member) {
 }
 
 function isAdministratorAccount(member) {
-  return ["admin", "administrator"].includes(
-    normalizeRole(member.role),
-  );
+  return ["admin", "administrator"].includes(normalizeRole(member.role));
 }
 
 function formatDate(value) {
@@ -189,15 +185,11 @@ function StatCard({
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-6">
-      <div
-        className={`absolute inset-x-0 top-0 h-1 ${palette.accent}`}
-      />
+      <div className={`absolute inset-x-0 top-0 h-1 ${palette.accent}`} />
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-500">
-            {title}
-          </p>
+          <p className="text-sm font-medium text-gray-500">{title}</p>
 
           <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
             {value}
@@ -273,9 +265,7 @@ function EmptyState({
         <Icon size={27} strokeWidth={1.7} />
       </div>
 
-      <h3 className="text-base font-semibold text-gray-900">
-        {title}
-      </h3>
+      <h3 className="text-base font-semibold text-gray-900">{title}</h3>
 
       <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
         {description}
@@ -363,9 +353,7 @@ export default function AdminPanel({ user, onLogout }) {
 
       setRequests(list);
     } catch (err) {
-      setError(
-        err.message || "Unable to load password reset requests.",
-      );
+      setError(err.message || "Unable to load password reset requests.");
     } finally {
       setRequestsLoading(false);
     }
@@ -413,16 +401,21 @@ export default function AdminPanel({ user, onLogout }) {
     setError("");
     setNotice("");
 
-    const staffId = form.staffId.trim();
     const name = form.name.trim();
     const password = form.password;
+    const role = form.role;
 
-    if (!staffId || !name) {
-      setError("Staff ID and full name are required.");
+    if (!name) {
+      setError("Full name is required.");
       return;
     }
 
-    if (!["Nurse", "Doctor"].includes(form.role)) {
+    if (name.length > 120) {
+      setError("Full name must not exceed 120 characters.");
+      return;
+    }
+
+    if (!["Nurse", "Doctor"].includes(role)) {
       setError("Please select a valid staff role.");
       return;
     }
@@ -439,20 +432,24 @@ export default function AdminPanel({ user, onLogout }) {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({
-          staffId,
           name,
           password,
-          role: form.role,
+          role,
         }),
       });
 
       const result = await readResponse(response);
 
+      const generatedStaffId =
+        result.staff?.staffId ?? result.staff?.staff_id ?? "";
+
       setFormOpen(false);
       setForm({ ...emptyForm });
 
       setNotice(
-        result.message || "Staff account created successfully.",
+        generatedStaffId
+          ? `${result.message || "Staff account created successfully."} Generated Staff ID: ${generatedStaffId}`
+          : result.message || "Staff account created successfully.",
       );
 
       await loadStaff();
@@ -470,7 +467,7 @@ export default function AdminPanel({ user, onLogout }) {
     setNotice("");
 
     if (isAdministratorAccount(member)) {
-      setError("Administrator accounts are protected.");
+      setError("Administrator accounts cannot be activated or deactivated here.");
       return;
     }
 
@@ -478,9 +475,7 @@ export default function AdminPanel({ user, onLogout }) {
       currentStaffId != null &&
       String(currentStaffId) === String(member.id);
 
-    const nextStatus = isActiveAccount(member) ? "Inactive" : "Active";
-
-    if (isCurrentUser && nextStatus === "Inactive") {
+    if (isCurrentUser && isActiveAccount(member)) {
       setError("You cannot deactivate your own account.");
       return;
     }
@@ -490,8 +485,10 @@ export default function AdminPanel({ user, onLogout }) {
       return;
     }
 
+    const nextStatus = isActiveAccount(member) ? "Inactive" : "Active";
+
     const confirmed = window.confirm(
-      `Are you sure you want to ${nextStatus.toLowerCase()} ${member.name}'s account?`,
+      `${nextStatus === "Inactive" ? "Deactivate" : "Activate"} ${member.name}'s account?`,
     );
 
     if (!confirmed) return;
@@ -500,9 +497,9 @@ export default function AdminPanel({ user, onLogout }) {
 
     try {
       const response = await fetch(
-        `${API_URL}/api/admin/staff/${encodeURIComponent(member.id)}`,
+        `${API_URL}/api/admin/staff/${encodeURIComponent(member.id)}/status`,
         {
-          method: "PUT",
+          method: "PATCH",
           headers: getHeaders(),
           body: JSON.stringify({ status: nextStatus }),
         },
@@ -510,26 +507,14 @@ export default function AdminPanel({ user, onLogout }) {
 
       const result = await readResponse(response);
 
-      if (result.staff) {
-        const updatedStaff = normalizeStaff(result.staff);
-
-        setStaff((previous) =>
-          previous.map((item) =>
-            String(item.id) === String(updatedStaff.id)
-              ? updatedStaff
-              : item,
-          ),
-        );
-      }
-
       setNotice(
         result.message ||
-          `${member.name}'s account is now ${nextStatus.toLowerCase()}.`,
+          `${member.name}'s account has been ${nextStatus.toLowerCase()}.`,
       );
 
       await loadStaff();
     } catch (err) {
-      setError(err.message || "Unable to change account status.");
+      setError(err.message || "Unable to update the account status.");
     } finally {
       setSaving(false);
     }
@@ -580,14 +565,10 @@ export default function AdminPanel({ user, onLogout }) {
       const result = await readResponse(response);
 
       setStaff((previous) =>
-        previous.filter(
-          (item) => String(item.id) !== String(member.id),
-        ),
+        previous.filter((item) => String(item.id) !== String(member.id)),
       );
 
-      setNotice(
-        result.message || "Staff account deleted successfully.",
-      );
+      setNotice(result.message || "Staff account deleted successfully.");
 
       await loadStaff();
     } catch (err) {
@@ -597,86 +578,80 @@ export default function AdminPanel({ user, onLogout }) {
     }
   };
 
-const handleResetPassword = async (request) => {
-  if (saving) return;
+  const handleResetPassword = async (request) => {
+    if (saving) return;
 
-  setError("");
-  setNotice("");
+    setError("");
+    setNotice("");
 
-  const staffId = request.staff_id ?? request.staffId ?? "";
+    const staffId = request.staff_id ?? request.staffId ?? "";
 
-  const staffMember = staff.find(
-    (member) =>
-      String(member.staffId).trim() === String(staffId).trim(),
-  );
-
-  if (!request.id) {
-    setError("This reset request has no valid database ID.");
-    return;
-  }
-
-  if (!staffMember?.id) {
-    setError(
-      "The staff account could not be found. Refresh and try again.",
-    );
-    return;
-  }
-
-  if (isAdministratorAccount(staffMember)) {
-    setError("Administrator accounts cannot be reset here.");
-    return;
-  }
-
-  if (!isActiveAccount(staffMember)) {
-    setError(
-      "Activate this staff account before resetting its password.",
-    );
-    return;
-  }
-
-  const staffName =
-    request.staffName || staffMember.name;
-
-  const confirmed = window.confirm(
-    `Generate a unique temporary password for ${staffName}? The staff member must change it after logging in. You will need to share the temporary password privately.`,
-  );
-
-  if (!confirmed) return;
-
-  setSaving(true);
-
-  try {
-    const response = await fetch(
-      `${API_URL}/api/admin/password-reset-requests/${encodeURIComponent(request.id)}/reset`,
-      {
-        method: "POST",
-        headers: getHeaders(),
-      },
+    const staffMember = staff.find(
+      (member) =>
+        String(member.staffId).trim() === String(staffId).trim(),
     );
 
-    const result = await readResponse(response);
-
-    if (!result.temporaryPassword) {
-      setError(
-        "The server did not return the temporary password. Check the backend response before attempting another reset.",
-      );
-
-      await Promise.all([loadStaff(), loadRequests()]);
+    if (!request.id) {
+      setError("This reset request has no valid database ID.");
       return;
     }
 
-    setNotice(
-      `Password reset successfully for ${staffName}. Temporary password: ${result.temporaryPassword}. Copy it now and share it privately with the staff member. They must change it at their next login.`,
+    if (!staffMember?.id) {
+      setError("The staff account could not be found. Refresh and try again.");
+      return;
+    }
+
+    if (isAdministratorAccount(staffMember)) {
+      setError("Administrator accounts cannot be reset here.");
+      return;
+    }
+
+    if (!isActiveAccount(staffMember)) {
+      setError("Activate this staff account before resetting its password.");
+      return;
+    }
+
+    const staffName = request.staffName || staffMember.name;
+
+    const confirmed = window.confirm(
+      `Generate a unique temporary password for ${staffName}? The staff member must change it after logging in. You will need to share the temporary password privately.`,
     );
 
-    await Promise.all([loadStaff(), loadRequests()]);
-  } catch (err) {
-    setError(err.message || "Unable to reset this password.");
-  } finally {
-    setSaving(false);
-  }
-};
+    if (!confirmed) return;
 
+    setSaving(true);
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/admin/password-reset-requests/${encodeURIComponent(request.id)}/reset`,
+        {
+          method: "POST",
+          headers: getHeaders(),
+        },
+      );
+
+      const result = await readResponse(response);
+
+      if (!result.temporaryPassword) {
+        setError(
+          "The server did not return the temporary password. Check the backend response before attempting another reset.",
+        );
+
+        await Promise.all([loadStaff(), loadRequests()]);
+        return;
+      }
+
+      setNotice(
+        `Password reset successfully for ${staffName}. Temporary password: ${result.temporaryPassword}. Copy it now and share it privately with the staff member. They must change it at their next login.`,
+      );
+
+      await Promise.all([loadStaff(), loadRequests()]);
+    } catch (err) {
+      setError(err.message || "Unable to reset this password.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const activeCount = staff.filter(isActiveAccount).length;
   const inactiveCount = staff.length - activeCount;
@@ -790,10 +765,7 @@ const handleResetPassword = async (request) => {
             </div>
 
             <div>
-              <h1 className="text-lg font-bold tracking-wide">
-                UDM CLINIC
-              </h1>
-
+              <h1 className="text-lg font-bold tracking-wide">UDM CLINIC</h1>
               <p className="mt-1 text-[11px] font-medium tracking-wide text-green-200">
                 HEALTHCARE MONITORING
               </p>
@@ -844,9 +816,7 @@ const handleResetPassword = async (request) => {
                     </span>
                   )}
 
-                {selected && (
-                  <ChevronRight className="shrink-0" size={16} />
-                )}
+                {selected && <ChevronRight className="shrink-0" size={16} />}
               </button>
             );
           })}
@@ -855,16 +825,13 @@ const handleResetPassword = async (request) => {
         <div className="border-t border-white/10 p-4">
           <div className="mb-3 rounded-xl border border-white/10 bg-white/5 p-3">
             <div className="flex items-center gap-3">
-              <Avatar name={user?.name} size="normal" />
+              <Avatar name={user?.name} />
 
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">
                   {user?.name || "Administrator"}
                 </p>
-
-                <p className="mt-1 text-xs text-green-200">
-                  Administrator
-                </p>
+                <p className="mt-1 text-xs text-green-200">Administrator</p>
               </div>
 
               <ShieldCheck size={17} className="text-green-300" />
@@ -899,10 +866,7 @@ const handleResetPassword = async (request) => {
                 <div className="flex items-center gap-2 text-xs text-gray-400">
                   <span>UDM Clinic</span>
                   <ChevronRight size={13} />
-
-                  <span className="truncate text-gray-600">
-                    {activePage}
-                  </span>
+                  <span className="truncate text-gray-600">{activePage}</span>
                 </div>
 
                 <h2 className="mt-1 truncate text-lg font-bold text-gray-950 sm:text-xl">
@@ -914,7 +878,6 @@ const handleResetPassword = async (request) => {
             <div className="flex shrink-0 items-center gap-2 sm:gap-4">
               <div className="hidden items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 sm:flex">
                 <CalendarDays size={16} className="text-green-800" />
-
                 <span className="text-xs font-medium text-gray-600">
                   {new Date().toLocaleDateString(undefined, {
                     month: "short",
@@ -934,9 +897,7 @@ const handleResetPassword = async (request) => {
               >
                 <RefreshCw
                   size={18}
-                  className={
-                    loading || requestsLoading ? "animate-spin" : ""
-                  }
+                  className={loading || requestsLoading ? "animate-spin" : ""}
                 />
               </button>
 
@@ -948,16 +909,10 @@ const handleResetPassword = async (request) => {
                 <p className="max-w-40 truncate text-sm font-semibold text-gray-900">
                   {user?.name || "Administrator"}
                 </p>
-
-                <p className="mt-0.5 text-xs text-gray-500">
-                  System Administrator
-                </p>
+                <p className="mt-0.5 text-xs text-gray-500">System Administrator</p>
               </div>
 
-              <ChevronDown
-                size={15}
-                className="hidden text-gray-400 lg:block"
-              />
+              <ChevronDown size={15} className="hidden text-gray-400 lg:block" />
             </div>
           </div>
         </header>
@@ -976,7 +931,6 @@ const handleResetPassword = async (request) => {
                   <div className="max-w-2xl">
                     <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5">
                       <span className="h-2 w-2 rounded-full bg-emerald-300" />
-
                       <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-green-50">
                         Administration workspace
                       </span>
@@ -984,14 +938,12 @@ const handleResetPassword = async (request) => {
 
                     <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
                       Welcome back,
-                      <br className="sm:hidden" />{" "}
-                      {user?.name || "Administrator"}.
+                      <br className="sm:hidden" /> {user?.name || "Administrator"}.
                     </h1>
 
                     <p className="mt-4 max-w-xl text-sm leading-7 text-green-50/80 sm:text-base">
                       Manage authorized clinic personnel, monitor account
-                      access, and review password reset requests from one
-                      place.
+                      access, and review password reset requests from one place.
                     </p>
 
                     <div className="mt-7 flex flex-wrap gap-3">
@@ -1006,14 +958,11 @@ const handleResetPassword = async (request) => {
 
                       <button
                         type="button"
-                        onClick={() =>
-                          navigateTo("Password Reset Requests")
-                        }
+                        onClick={() => navigateTo("Password Reset Requests")}
                         className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
                       >
                         <KeyRound size={17} />
                         Review Requests
-
                         {requests.length > 0 && (
                           <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-bold text-green-950">
                             {requests.length}
@@ -1025,11 +974,7 @@ const handleResetPassword = async (request) => {
 
                   <div className="hidden lg:flex lg:items-center lg:justify-center">
                     <div className="flex h-36 w-36 items-center justify-center rounded-[2rem] border border-white/15 bg-white/10 shadow-inner">
-                      <Stethoscope
-                        size={74}
-                        strokeWidth={1.2}
-                        className="text-white"
-                      />
+                      <Stethoscope size={74} strokeWidth={1.2} className="text-white" />
                     </div>
                   </div>
                 </div>
@@ -1047,10 +992,7 @@ const handleResetPassword = async (request) => {
                     disabled={loading || requestsLoading}
                     className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-green-200 hover:bg-green-50 hover:text-green-900 disabled:opacity-50"
                   >
-                    <RefreshCw
-                      size={16}
-                      className={loading ? "animate-spin" : ""}
-                    />
+                    <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                     Refresh
                   </button>
                 </SectionHeading>
@@ -1063,7 +1005,6 @@ const handleResetPassword = async (request) => {
                     icon={Users}
                     color="blue"
                   />
-
                   <StatCard
                     title="Active accounts"
                     value={activeCount}
@@ -1071,7 +1012,6 @@ const handleResetPassword = async (request) => {
                     icon={UserCheck}
                     color="green"
                   />
-
                   <StatCard
                     title="Inactive accounts"
                     value={inactiveCount}
@@ -1079,7 +1019,6 @@ const handleResetPassword = async (request) => {
                     icon={UserX}
                     color="amber"
                   />
-
                   <StatCard
                     title="Pending requests"
                     value={requests.length}
@@ -1094,15 +1033,9 @@ const handleResetPassword = async (request) => {
                 <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">
-                        Personnel distribution
-                      </h3>
-
-                      <p className="mt-1 text-sm text-gray-500">
-                        Registered accounts grouped by role.
-                      </p>
+                      <h3 className="text-lg font-bold text-gray-900">Personnel distribution</h3>
+                      <p className="mt-1 text-sm text-gray-500">Registered accounts grouped by role.</p>
                     </div>
-
                     <div className="rounded-xl bg-green-50 p-3 text-green-800">
                       <Activity size={21} />
                     </div>
@@ -1113,25 +1046,15 @@ const handleResetPassword = async (request) => {
                       <div className="mb-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="h-2.5 w-2.5 rounded-full bg-green-700" />
-                          <span className="text-sm font-medium text-gray-700">
-                            Nurses
-                          </span>
+                          <span className="text-sm font-medium text-gray-700">Nurses</span>
                         </div>
-
-                        <span className="text-sm font-bold text-gray-900">
-                          {nurseCount}
-                        </span>
+                        <span className="text-sm font-bold text-gray-900">{nurseCount}</span>
                       </div>
-
                       <div className="h-2.5 overflow-hidden rounded-full bg-gray-100">
                         <div
                           className="h-full rounded-full bg-green-700 transition-all"
                           style={{
-                            width: `${
-                              staff.length
-                                ? (nurseCount / staff.length) * 100
-                                : 0
-                            }%`,
+                            width: `${staff.length ? (nurseCount / staff.length) * 100 : 0}%`,
                           }}
                         />
                       </div>
@@ -1141,25 +1064,15 @@ const handleResetPassword = async (request) => {
                       <div className="mb-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-                          <span className="text-sm font-medium text-gray-700">
-                            Doctors
-                          </span>
+                          <span className="text-sm font-medium text-gray-700">Doctors</span>
                         </div>
-
-                        <span className="text-sm font-bold text-gray-900">
-                          {doctorCount}
-                        </span>
+                        <span className="text-sm font-bold text-gray-900">{doctorCount}</span>
                       </div>
-
                       <div className="h-2.5 overflow-hidden rounded-full bg-gray-100">
                         <div
                           className="h-full rounded-full bg-blue-600 transition-all"
                           style={{
-                            width: `${
-                              staff.length
-                                ? (doctorCount / staff.length) * 100
-                                : 0
-                            }%`,
+                            width: `${staff.length ? (doctorCount / staff.length) * 100 : 0}%`,
                           }}
                         />
                       </div>
@@ -1168,23 +1081,12 @@ const handleResetPassword = async (request) => {
 
                   <div className="mt-7 grid grid-cols-2 gap-3">
                     <div className="rounded-xl bg-gray-50 p-4">
-                      <p className="text-xs font-medium text-gray-500">
-                        Nurse accounts
-                      </p>
-
-                      <p className="mt-2 text-2xl font-bold text-gray-900">
-                        {nurseCount}
-                      </p>
+                      <p className="text-xs font-medium text-gray-500">Nurse accounts</p>
+                      <p className="mt-2 text-2xl font-bold text-gray-900">{nurseCount}</p>
                     </div>
-
                     <div className="rounded-xl bg-gray-50 p-4">
-                      <p className="text-xs font-medium text-gray-500">
-                        Doctor accounts
-                      </p>
-
-                      <p className="mt-2 text-2xl font-bold text-gray-900">
-                        {doctorCount}
-                      </p>
+                      <p className="text-xs font-medium text-gray-500">Doctor accounts</p>
+                      <p className="mt-2 text-2xl font-bold text-gray-900">{doctorCount}</p>
                     </div>
                   </div>
                 </div>
@@ -1192,15 +1094,9 @@ const handleResetPassword = async (request) => {
                 <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">
-                        Password reset requests
-                      </h3>
-
-                      <p className="mt-1 text-sm text-gray-500">
-                        Review staff access recovery requests.
-                      </p>
+                      <h3 className="text-lg font-bold text-gray-900">Password reset requests</h3>
+                      <p className="mt-1 text-sm text-gray-500">Review staff access recovery requests.</p>
                     </div>
-
                     <div className="rounded-xl bg-amber-50 p-3 text-amber-800">
                       <KeyRound size={21} />
                     </div>
@@ -1210,16 +1106,10 @@ const handleResetPassword = async (request) => {
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-amber-800 shadow-sm">
                       <Clock3 size={23} />
                     </div>
-
                     <div className="min-w-0">
-                      <p className="text-2xl font-bold text-gray-900">
-                        {requests.length}
-                      </p>
-
+                      <p className="text-2xl font-bold text-gray-900">{requests.length}</p>
                       <p className="mt-1 text-xs leading-5 text-gray-600">
-                        Pending request
-                        {requests.length === 1 ? "" : "s"} need
-                        administrator review.
+                        Pending request{requests.length === 1 ? "" : "s"} need administrator review.
                       </p>
                     </div>
                   </div>
@@ -1235,12 +1125,10 @@ const handleResetPassword = async (request) => {
                             <p className="truncate text-sm font-semibold text-gray-800">
                               {request.staffName || "Staff member"}
                             </p>
-
                             <p className="mt-1 text-xs text-gray-500">
                               {request.staff_id || request.staffId || "—"}
                             </p>
                           </div>
-
                           <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-800">
                             Pending
                           </span>
@@ -1255,9 +1143,7 @@ const handleResetPassword = async (request) => {
 
                   <button
                     type="button"
-                    onClick={() =>
-                      navigateTo("Password Reset Requests")
-                    }
+                    onClick={() => navigateTo("Password Reset Requests")}
                     className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-green-200 hover:bg-green-50 hover:text-green-900"
                   >
                     View all requests
@@ -1309,22 +1195,14 @@ const handleResetPassword = async (request) => {
                         className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0"
                       >
                         <div className="flex min-w-0 items-center gap-3">
-                          <Avatar
-                            name={member.name}
-                            image={member.profileImage}
-                          />
-
+                          <Avatar name={member.name} image={member.profileImage} />
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-gray-900">
-                              {member.name}
-                            </p>
-
+                            <p className="truncate text-sm font-semibold text-gray-900">{member.name}</p>
                             <p className="mt-1 truncate text-xs text-gray-500">
                               {member.staffId} · {member.role}
                             </p>
                           </div>
                         </div>
-
                         <StatusBadge status={member.status} />
                       </div>
                     ))}
@@ -1347,10 +1225,7 @@ const handleResetPassword = async (request) => {
                   disabled={loading || saving}
                   className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-50"
                 >
-                  <RefreshCw
-                    size={16}
-                    className={loading ? "animate-spin" : ""}
-                  />
+                  <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                   Refresh
                 </button>
 
@@ -1366,40 +1241,16 @@ const handleResetPassword = async (request) => {
               </SectionHeading>
 
               <div className="mb-6 grid gap-4 sm:grid-cols-3">
-                <StatCard
-                  title="Total staff"
-                  value={staff.length}
-                  description="Registered personnel"
-                  icon={Users}
-                  color="blue"
-                />
-
-                <StatCard
-                  title="Active accounts"
-                  value={activeCount}
-                  description="Currently active"
-                  icon={UserCheck}
-                  color="green"
-                />
-
-                <StatCard
-                  title="Inactive accounts"
-                  value={inactiveCount}
-                  description="Access disabled"
-                  icon={UserX}
-                  color="amber"
-                />
+                <StatCard title="Total staff" value={staff.length} description="Registered personnel" icon={Users} color="blue" />
+                <StatCard title="Active accounts" value={activeCount} description="Currently active" icon={UserCheck} color="green" />
+                <StatCard title="Inactive accounts" value={inactiveCount} description="Access disabled" icon={UserX} color="amber" />
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                 <div className="border-b border-gray-200 p-4 sm:p-5">
                   <div className="flex flex-col gap-3 lg:flex-row">
                     <div className="relative min-w-0 flex-1">
-                      <Search
-                        size={18}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
-                      />
-
+                      <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                       <input
                         type="search"
                         value={search}
@@ -1436,10 +1287,7 @@ const handleResetPassword = async (request) => {
 
                 {loading ? (
                   <div className="flex items-center justify-center gap-3 py-16 text-sm text-gray-500">
-                    <RefreshCw
-                      size={20}
-                      className="animate-spin text-green-800"
-                    />
+                    <RefreshCw size={20} className="animate-spin text-green-800" />
                     Loading staff accounts...
                   </div>
                 ) : filteredStaff.length === 0 ? (
@@ -1448,9 +1296,7 @@ const handleResetPassword = async (request) => {
                     title="No matching staff accounts"
                     description="Try a different search term or change the filters."
                   >
-                    {(search ||
-                      statusFilter !== "All" ||
-                      roleFilter !== "All") && (
+                    {(search || statusFilter !== "All" || roleFilter !== "All") && (
                       <button
                         type="button"
                         onClick={() => {
@@ -1480,56 +1326,36 @@ const handleResetPassword = async (request) => {
                       <tbody className="divide-y divide-gray-100">
                         {filteredStaff.map((member) => {
                           const active = isActiveAccount(member);
-                          const protectedAccount =
-                            isAdministratorAccount(member);
+                          const protectedAccount = isAdministratorAccount(member);
 
                           const isCurrentUser =
                             currentStaffId != null &&
                             String(currentStaffId) === String(member.id);
 
                           return (
-                            <tr
-                              key={member.id}
-                              className="transition hover:bg-green-50/40"
-                            >
+                            <tr key={member.id} className="transition hover:bg-green-50/40">
                               <td className="px-5 py-4">
                                 <div className="flex items-center gap-3">
-                                  <Avatar
-                                    name={member.name}
-                                    image={member.profileImage}
-                                  />
-
+                                  <Avatar name={member.name} image={member.profileImage} />
                                   <div className="min-w-0">
-                                    <p className="truncate font-semibold text-gray-900">
-                                      {member.name}
-                                    </p>
-
+                                    <p className="truncate font-semibold text-gray-900">{member.name}</p>
                                     <p className="mt-1 text-xs text-gray-500">
-                                      {protectedAccount
-                                        ? "Protected administrator account"
-                                        : "Clinic personnel"}
+                                      {protectedAccount ? "Protected administrator account" : "Clinic personnel"}
                                     </p>
                                   </div>
                                 </div>
                               </td>
 
-                              <td className="px-5 py-4 font-medium text-gray-700">
-                                {member.staffId || "—"}
-                              </td>
+                              <td className="px-5 py-4 font-medium text-gray-700">{member.staffId || "—"}</td>
 
                               <td className="px-5 py-4">
                                 <span className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700">
-                                  {protectedAccount && (
-                                    <ShieldCheck size={14} />
-                                  )}
-
+                                  {protectedAccount && <ShieldCheck size={14} />}
                                   {member.role}
                                 </span>
                               </td>
 
-                              <td className="px-5 py-4">
-                                <StatusBadge status={member.status} />
-                              </td>
+                              <td className="px-5 py-4"><StatusBadge status={member.status} /></td>
 
                               <td className="px-5 py-4">
                                 <div className="flex justify-end gap-2">
@@ -1545,21 +1371,11 @@ const handleResetPassword = async (request) => {
                                             : "Activate account"
                                     }
                                     aria-label={`${active ? "Deactivate" : "Activate"} ${member.name}`}
-                                    onClick={() =>
-                                      handleStatusToggle(member)
-                                    }
-                                    disabled={
-                                      saving ||
-                                      protectedAccount ||
-                                      (isCurrentUser && active)
-                                    }
+                                    onClick={() => handleStatusToggle(member)}
+                                    disabled={saving || protectedAccount || (isCurrentUser && active)}
                                     className="rounded-lg border border-gray-200 bg-white p-2.5 text-gray-600 transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-800 disabled:cursor-not-allowed disabled:opacity-30"
                                   >
-                                    {active ? (
-                                      <UserX size={17} />
-                                    ) : (
-                                      <UserCheck size={17} />
-                                    )}
+                                    {active ? <UserX size={17} /> : <UserCheck size={17} />}
                                   </button>
 
                                   <button
@@ -1571,11 +1387,7 @@ const handleResetPassword = async (request) => {
                                     }
                                     aria-label={`Delete ${member.name}`}
                                     onClick={() => handleDelete(member)}
-                                    disabled={
-                                      saving ||
-                                      protectedAccount ||
-                                      isCurrentUser
-                                    }
+                                    disabled={saving || protectedAccount || isCurrentUser}
                                     className="rounded-lg border border-gray-200 bg-white p-2.5 text-gray-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30"
                                   >
                                     <Trash2 size={17} />
@@ -1592,21 +1404,10 @@ const handleResetPassword = async (request) => {
 
                 <div className="flex flex-col gap-2 border-t border-gray-100 bg-gray-50/70 px-5 py-4 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
                   <p>
-                    Showing{" "}
-                    <span className="font-semibold text-gray-800">
-                      {filteredStaff.length}
-                    </span>{" "}
-                    of{" "}
-                    <span className="font-semibold text-gray-800">
-                      {staff.length}
-                    </span>{" "}
-                    accounts
+                    Showing <span className="font-semibold text-gray-800">{filteredStaff.length}</span> of{" "}
+                    <span className="font-semibold text-gray-800">{staff.length}</span> accounts
                   </p>
-
-                  <p>
-                    {activeCount} active <span className="mx-1">·</span>{" "}
-                    {inactiveCount} inactive
-                  </p>
+                  <p>{activeCount} active <span className="mx-1">·</span> {inactiveCount} inactive</p>
                 </div>
               </div>
             </div>
@@ -1628,10 +1429,7 @@ const handleResetPassword = async (request) => {
                   disabled={requestsLoading || loading || saving}
                   className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-50"
                 >
-                  <RefreshCw
-                    size={16}
-                    className={requestsLoading ? "animate-spin" : ""}
-                  />
+                  <RefreshCw size={16} className={requestsLoading ? "animate-spin" : ""} />
                   Refresh requests
                 </button>
               </SectionHeading>
@@ -1641,15 +1439,10 @@ const handleResetPassword = async (request) => {
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-amber-800 shadow-sm">
                     <KeyRound size={23} />
                   </div>
-
                   <div>
-                    <p className="font-bold text-gray-900">
-                      Pending review
-                    </p>
-
+                    <p className="font-bold text-gray-900">Pending review</p>
                     <p className="mt-1 text-sm text-gray-600">
-                      {requests.length} request
-                      {requests.length === 1 ? "" : "s"} awaiting action
+                      {requests.length} request{requests.length === 1 ? "" : "s"} awaiting action
                     </p>
                   </div>
                 </div>
@@ -1662,10 +1455,7 @@ const handleResetPassword = async (request) => {
 
               <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                 <div className="border-b border-gray-200 px-5 py-4">
-                  <h3 className="font-bold text-gray-900">
-                    Requests awaiting action
-                  </h3>
-
+                  <h3 className="font-bold text-gray-900">Requests awaiting action</h3>
                   <p className="mt-1 text-xs text-gray-500">
                     Verify each account before approving a password reset.
                   </p>
@@ -1673,10 +1463,7 @@ const handleResetPassword = async (request) => {
 
                 {requestsLoading ? (
                   <div className="flex items-center justify-center gap-3 py-16 text-sm text-gray-500">
-                    <RefreshCw
-                      size={20}
-                      className="animate-spin text-green-800"
-                    />
+                    <RefreshCw size={20} className="animate-spin text-green-800" />
                     Loading requests...
                   </div>
                 ) : requests.length === 0 ? (
@@ -1701,104 +1488,59 @@ const handleResetPassword = async (request) => {
 
                       <tbody className="divide-y divide-gray-100">
                         {requests.map((request) => {
-                          const requestStaffId =
-                            request.staff_id ?? request.staffId ?? "";
+                          const requestStaffId = request.staff_id ?? request.staffId ?? "";
 
                           const member = staff.find(
                             (item) =>
-                              String(item.staffId).trim() ===
-                              String(requestStaffId).trim(),
+                              String(item.staffId).trim() === String(requestStaffId).trim(),
                           );
 
-                          const role =
-                            request.role || member?.role || "Unknown";
-
+                          const role = request.role || member?.role || "Unknown";
                           const accountStatus =
-                            request.accountStatus ||
-                            member?.status ||
-                            "Unknown";
+                            request.accountStatus || member?.status || "Unknown";
 
                           const isEligible =
                             Boolean(member?.id) &&
                             isActiveAccount(member) &&
-                            ["nurse", "doctor"].includes(
-                              normalizeRole(role),
-                            );
+                            ["nurse", "doctor"].includes(normalizeRole(role));
 
                           return (
-                            <tr
-                              key={request.id}
-                              className="transition hover:bg-green-50/30"
-                            >
+                            <tr key={request.id} className="transition hover:bg-green-50/30">
                               <td className="px-5 py-4">
                                 <div className="flex items-center gap-3">
-                                  <Avatar
-                                    name={
-                                      request.staffName ||
-                                      member?.name ||
-                                      "Staff"
-                                    }
-                                  />
-
+                                  <Avatar name={request.staffName || member?.name || "Staff"} />
                                   <div>
                                     <p className="font-semibold text-gray-900">
-                                      {request.staffName ||
-                                        member?.name ||
-                                        "Unknown staff member"}
+                                      {request.staffName || member?.name || "Unknown staff member"}
                                     </p>
-
-                                    <p className="mt-1 text-xs text-gray-500">
-                                      Request #{request.id}
-                                    </p>
+                                    <p className="mt-1 text-xs text-gray-500">Request #{request.id}</p>
                                   </div>
                                 </div>
                               </td>
 
-                              <td className="px-5 py-4 font-medium text-gray-700">
-                                {requestStaffId || "—"}
-                              </td>
-
+                              <td className="px-5 py-4 font-medium text-gray-700">{requestStaffId || "—"}</td>
                               <td className="px-5 py-4">
-                                <span className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700">
-                                  {role}
-                                </span>
+                                <span className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700">{role}</span>
                               </td>
-
-                              <td className="px-5 py-4">
-                                <StatusBadge status={accountStatus} />
-                              </td>
-
+                              <td className="px-5 py-4"><StatusBadge status={accountStatus} /></td>
                               <td className="px-5 py-4">
                                 <div className="flex items-center gap-2 text-gray-600">
-                                  <Clock3
-                                    size={15}
-                                    className="shrink-0 text-gray-400"
-                                  />
-
+                                  <Clock3 size={15} className="shrink-0 text-gray-400" />
                                   <span className="whitespace-nowrap text-xs">
-                                    {formatDate(
-                                      request.requested_at ??
-                                        request.requestedAt,
-                                    )}
+                                    {formatDate(request.requested_at ?? request.requestedAt)}
                                   </span>
                                 </div>
                               </td>
-
                               <td className="px-5 py-4">
                                 <div className="flex justify-end">
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      handleResetPassword(request)
-                                    }
+                                    onClick={() => handleResetPassword(request)}
                                     disabled={saving || !isEligible}
                                     className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-green-900 px-3.5 py-2.5 text-xs font-semibold text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-40"
                                   >
                                     <KeyRound size={15} />
-
-                                    {saving
-                                      ? "Processing..."
-                                      : "Reset password"}
+                                    {saving ? "Processing..." : "Reset password"}
                                   </button>
                                 </div>
 
@@ -1818,8 +1560,7 @@ const handleResetPassword = async (request) => {
 
                 <div className="border-t border-gray-100 bg-gray-50/70 px-5 py-4">
                   <p className="text-xs leading-5 text-gray-500">
-                    Temporary passwords should be changed immediately after
-                    login. This page shows pending requests only.
+                    Temporary passwords should be changed immediately after login. This page shows pending requests only.
                   </p>
                 </div>
               </div>
@@ -1839,17 +1580,10 @@ const handleResetPassword = async (request) => {
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-50 text-green-800">
                     <ShieldCheck size={25} />
                   </div>
-
-                  <h3 className="mt-5 text-lg font-bold text-gray-900">
-                    Staff account permissions
-                  </h3>
-
+                  <h3 className="mt-5 text-lg font-bold text-gray-900">Staff account permissions</h3>
                   <p className="mt-2 text-sm leading-6 text-gray-500">
-                    Activate or deactivate Nurse and Doctor accounts from
-                    Staff Management. Deactivated accounts should not be
-                    able to sign in.
+                    Activate or deactivate Nurse and Doctor accounts from Staff Management. Deactivated accounts should not be able to sign in.
                   </p>
-
                   <button
                     type="button"
                     onClick={() => navigateTo("Staff Management")}
@@ -1864,22 +1598,13 @@ const handleResetPassword = async (request) => {
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-800">
                     <KeyRound size={25} />
                   </div>
-
-                  <h3 className="mt-5 text-lg font-bold text-gray-900">
-                    Password recovery
-                  </h3>
-
+                  <h3 className="mt-5 text-lg font-bold text-gray-900">Password recovery</h3>
                   <p className="mt-2 text-sm leading-6 text-gray-500">
-                    Review reset requests before assigning a temporary
-                    password. Staff must change that temporary password
-                    before accessing clinic resources.
+                    Review reset requests before assigning a temporary password. Staff must change that temporary password before accessing clinic resources.
                   </p>
-
                   <button
                     type="button"
-                    onClick={() =>
-                      navigateTo("Password Reset Requests")
-                    }
+                    onClick={() => navigateTo("Password Reset Requests")}
                     className="mt-6 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-green-200 hover:bg-green-50 hover:text-green-900"
                   >
                     Review reset requests
@@ -1889,43 +1614,21 @@ const handleResetPassword = async (request) => {
               </div>
 
               <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h3 className="font-bold text-gray-900">
-                  Current access overview
-                </h3>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Counts from the staff accounts returned by your backend.
-                </p>
+                <h3 className="font-bold text-gray-900">Current access overview</h3>
+                <p className="mt-1 text-sm text-gray-500">Counts from the staff accounts returned by your backend.</p>
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-3">
                   <div className="rounded-xl bg-gray-50 p-4">
-                    <p className="text-xs font-medium text-gray-500">
-                      Total accounts
-                    </p>
-
-                    <p className="mt-2 text-2xl font-bold text-gray-900">
-                      {staff.length}
-                    </p>
+                    <p className="text-xs font-medium text-gray-500">Total accounts</p>
+                    <p className="mt-2 text-2xl font-bold text-gray-900">{staff.length}</p>
                   </div>
-
                   <div className="rounded-xl bg-green-50 p-4">
-                    <p className="text-xs font-medium text-green-800">
-                      Active
-                    </p>
-
-                    <p className="mt-2 text-2xl font-bold text-green-900">
-                      {activeCount}
-                    </p>
+                    <p className="text-xs font-medium text-green-800">Active</p>
+                    <p className="mt-2 text-2xl font-bold text-green-900">{activeCount}</p>
                   </div>
-
                   <div className="rounded-xl bg-gray-100 p-4">
-                    <p className="text-xs font-medium text-gray-600">
-                      Inactive
-                    </p>
-
-                    <p className="mt-2 text-2xl font-bold text-gray-800">
-                      {inactiveCount}
-                    </p>
+                    <p className="text-xs font-medium text-gray-600">Inactive</p>
+                    <p className="mt-2 text-2xl font-bold text-gray-800">{inactiveCount}</p>
                   </div>
                 </div>
               </div>
@@ -1944,34 +1647,19 @@ const handleResetPassword = async (request) => {
                 <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                   <div className="flex items-center gap-4">
                     <Avatar name={user?.name} size="large" />
-
                     <div className="min-w-0">
-                      <h3 className="truncate text-lg font-bold text-gray-900">
-                        {user?.name || "Administrator"}
-                      </h3>
-
-                      <p className="mt-1 text-sm text-gray-500">
-                        System Administrator
-                      </p>
+                      <h3 className="truncate text-lg font-bold text-gray-900">{user?.name || "Administrator"}</h3>
+                      <p className="mt-1 text-sm text-gray-500">System Administrator</p>
                     </div>
                   </div>
 
                   <div className="mt-6 border-t border-gray-100 pt-5">
                     <div className="flex items-center justify-between gap-3 py-2">
-                      <span className="text-sm text-gray-500">
-                        Account role
-                      </span>
-
-                      <span className="rounded-lg bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-800">
-                        Administrator
-                      </span>
+                      <span className="text-sm text-gray-500">Account role</span>
+                      <span className="rounded-lg bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-800">Administrator</span>
                     </div>
-
                     <div className="flex items-center justify-between gap-3 py-2">
-                      <span className="text-sm text-gray-500">
-                        Session
-                      </span>
-
+                      <span className="text-sm text-gray-500">Session</span>
                       <span className="inline-flex items-center gap-2 text-xs font-semibold text-green-800">
                         <span className="h-2 w-2 rounded-full bg-green-600" />
                         Authenticated
@@ -1984,14 +1672,9 @@ const handleResetPassword = async (request) => {
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-800">
                     <FileText size={24} />
                   </div>
-
-                  <h3 className="mt-5 text-lg font-bold text-gray-900">
-                    System management
-                  </h3>
-
+                  <h3 className="mt-5 text-lg font-bold text-gray-900">System management</h3>
                   <p className="mt-2 text-sm leading-6 text-gray-500">
-                    Manage authorized staff and account recovery from the
-                    administration workspace.
+                    Manage authorized staff and account recovery from the administration workspace.
                   </p>
 
                   <div className="mt-6 space-y-3">
@@ -2002,30 +1685,20 @@ const handleResetPassword = async (request) => {
                     >
                       <span className="flex items-center gap-3">
                         <Users size={18} className="text-green-800" />
-
-                        <span className="text-sm font-semibold text-gray-800">
-                          Staff management
-                        </span>
+                        <span className="text-sm font-semibold text-gray-800">Staff management</span>
                       </span>
-
                       <ChevronRight size={17} className="text-gray-400" />
                     </button>
 
                     <button
                       type="button"
-                      onClick={() =>
-                        navigateTo("Password Reset Requests")
-                      }
+                      onClick={() => navigateTo("Password Reset Requests")}
                       className="flex w-full items-center justify-between rounded-xl border border-gray-200 p-4 text-left transition hover:border-green-200 hover:bg-green-50"
                     >
                       <span className="flex items-center gap-3">
                         <KeyRound size={18} className="text-green-800" />
-
-                        <span className="text-sm font-semibold text-gray-800">
-                          Password reset requests
-                        </span>
+                        <span className="text-sm font-semibold text-gray-800">Password reset requests</span>
                       </span>
-
                       <ChevronRight size={17} className="text-gray-400" />
                     </button>
 
@@ -2036,12 +1709,8 @@ const handleResetPassword = async (request) => {
                     >
                       <span className="flex items-center gap-3">
                         <LogOut size={18} className="text-red-700" />
-
-                        <span className="text-sm font-semibold text-red-800">
-                          Sign out
-                        </span>
+                        <span className="text-sm font-semibold text-red-800">Sign out</span>
                       </span>
-
                       <ChevronRight size={17} className="text-red-400" />
                     </button>
                   </div>
@@ -2054,11 +1723,9 @@ const handleResetPassword = async (request) => {
 
       {formOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-gray-950/50 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-gray-950/50 p-4 backdrop-blur-[2px]"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              closeForm();
-            }
+            if (event.target === event.currentTarget) closeForm();
           }}
         >
           <div className="my-auto w-full max-w-lg overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl">
@@ -2067,11 +1734,7 @@ const handleResetPassword = async (request) => {
                 <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-green-50 text-green-800">
                   <Plus size={22} />
                 </div>
-
-                <h2 className="text-xl font-bold text-gray-950">
-                  Create staff account
-                </h2>
-
+                <h2 className="text-xl font-bold text-gray-950">Create staff account</h2>
                 <p className="mt-1 text-sm leading-6 text-gray-500">
                   Register an authorized Nurse or Doctor for the clinic.
                 </p>
@@ -2088,35 +1751,7 @@ const handleResetPassword = async (request) => {
               </button>
             </div>
 
-            <form
-              onSubmit={handleFormSubmit}
-              className="space-y-5 p-6 sm:p-7"
-            >
-              <div>
-                <label
-                  htmlFor="staffId"
-                  className="mb-2 block text-sm font-semibold text-gray-700"
-                >
-                  Staff ID
-                </label>
-
-                <input
-                  id="staffId"
-                  name="staffId"
-                  required
-                  value={form.staffId}
-                  onChange={(event) =>
-                    setForm((previous) => ({
-                      ...previous,
-                      staffId: event.target.value,
-                    }))
-                  }
-                  autoComplete="off"
-                  placeholder="Enter the staff ID"
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-green-700 focus:bg-white focus:ring-4 focus:ring-green-100"
-                />
-              </div>
-
+            <form onSubmit={handleFormSubmit} className="space-y-5 p-6 sm:p-7">
               <div>
                 <label
                   htmlFor="staffName"
@@ -2124,11 +1759,12 @@ const handleResetPassword = async (request) => {
                 >
                   Full name
                 </label>
-
                 <input
                   id="staffName"
                   name="name"
+                  type="text"
                   required
+                  maxLength={120}
                   value={form.name}
                   onChange={(event) =>
                     setForm((previous) => ({
@@ -2149,7 +1785,6 @@ const handleResetPassword = async (request) => {
                 >
                   Staff role
                 </label>
-
                 <select
                   id="staffRole"
                   name="role"
@@ -2174,7 +1809,6 @@ const handleResetPassword = async (request) => {
                 >
                   Initial password
                 </label>
-
                 <input
                   id="staffPassword"
                   name="password"
@@ -2192,23 +1826,16 @@ const handleResetPassword = async (request) => {
                   placeholder="At least 8 characters"
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-green-700 focus:bg-white focus:ring-4 focus:ring-green-100"
                 />
-
                 <p className="mt-2 text-xs leading-5 text-gray-500">
-                  Use an initial password that can be communicated securely
-                  to the staff member.
+                  Use an initial password that can be communicated securely to the staff member.
                 </p>
               </div>
 
               <div className="rounded-xl border border-green-100 bg-green-50/70 p-4">
                 <div className="flex items-start gap-3">
-                  <ShieldCheck
-                    size={19}
-                    className="mt-0.5 shrink-0 text-green-800"
-                  />
-
+                  <ShieldCheck size={19} className="mt-0.5 shrink-0 text-green-800" />
                   <p className="text-xs leading-5 text-green-900">
-                    Administrator accounts are not created from this form.
-                    Only Nurse and Doctor roles are available.
+                    A Staff ID will be generated automatically when this account is created. Administrator accounts are not created from this form.
                   </p>
                 </div>
               </div>

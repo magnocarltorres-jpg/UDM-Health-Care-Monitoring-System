@@ -2093,6 +2093,7 @@ app.post(
   },
 );
 
+
 app.post(
   "/api/admin/staff",
   authenticateToken,
@@ -2101,11 +2102,6 @@ app.post(
   async (req, res) => {
     try {
       const body = req.body || {};
-
-      const staffId =
-        typeof body.staffId === "string"
-          ? body.staffId.trim()
-          : "";
 
       const name =
         typeof body.name === "string"
@@ -2122,17 +2118,21 @@ app.post(
           ? body.role.trim()
           : "";
 
-      if (!staffId || !name || !password || !role) {
+      if (!name || !password || !role) {
         return res.status(400).json({
-          message:
-            "Staff ID, name, role, and password are required.",
+          message: "Name, role, and password are required.",
+        });
+      }
+
+      if (name.length > 120) {
+        return res.status(400).json({
+          message: "Name must not exceed 120 characters.",
         });
       }
 
       if (password.length < 8) {
         return res.status(400).json({
-          message:
-            "Password must contain at least 8 characters.",
+          message: "Password must contain at least 8 characters.",
         });
       }
 
@@ -2142,13 +2142,36 @@ app.post(
         });
       }
 
+      const {
+        data: generatedStaffId,
+        error: staffIdError,
+      } = await supabase.rpc("generate_staff_id");
+
+      if (
+        staffIdError ||
+        typeof generatedStaffId !== "string" ||
+        !/^ST-\d{3,}$/.test(generatedStaffId)
+      ) {
+        console.error(
+          "Staff ID generation failed:",
+          staffIdError?.message || "Invalid generated Staff ID.",
+        );
+
+        return res.status(500).json({
+          message:
+            "Unable to generate a Staff ID. Please try again.",
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+
       const { data, error } = await supabase
         .from("staff_accounts")
         .insert({
-          staff_id: staffId,
+          staff_id: generatedStaffId,
           name,
           role,
-          password: await bcrypt.hash(password, 12),
+          password: hashedPassword,
           status: "Active",
           must_change_password: true,
         })
@@ -2160,7 +2183,8 @@ app.post(
       if (error) {
         if (error.code === "23505") {
           return res.status(409).json({
-            message: "That Staff ID already exists.",
+            message:
+              "A duplicate Staff ID or another unique value was detected. Please try again.",
           });
         }
 
@@ -2180,7 +2204,10 @@ app.post(
         staff: mapStaffRecord(data),
       });
     } catch (error) {
-      console.error("Staff creation failed:", error.message);
+      console.error(
+        "Staff creation failed:",
+        error.message,
+      );
 
       return res.status(500).json({
         message: "Unable to create the staff account.",
