@@ -20,6 +20,9 @@ If you are developing a production application, we recommend using TypeScript wi
 The backend uses Supabase (PostgreSQL). Before deploying the clinic extensions,
 run [`backend/migrations/20261027_clinic_extensions.sql`](./backend/migrations/20261027_clinic_extensions.sql)
 against the project's PostgreSQL database using the Supabase SQL Editor or your
-usual migration workflow. This creates the course lookup, medicine inventory,
-dispensation, and drug-test tables, adds guardian fields to patients, and
-installs the transactional medicine-dispensing functions used by the API.
+usual migration workflow. This creates the course lookup, medicine dispensation,
+and drug-test tables, adds guardian fields to patients, and
+installs the transactional medicine-dispensing functions used by the API. The
+medicine API reads and updates the existing `public.medicines` table, including
+its `brand_name`, `generic_name`, `strength`, `stock_quantity`, and
+`expiration_date` fields.

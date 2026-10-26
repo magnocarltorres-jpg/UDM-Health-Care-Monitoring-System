@@ -294,7 +294,14 @@ function MedicineInventory({
                             ({medicine.dosage})
                           </span>
                         </h3>
+                        {medicine.brand_name && (
+                          <p className="mt-1 text-sm text-slate-500">
+                            Generic: {medicine.generic_name}
+                          </p>
+                        )}
                         <p className="mt-1 text-sm text-slate-500">
+                          Code: {medicine.item_code}
+                          {" · "}
                           Stock:{" "}
                           <strong className="text-slate-800">
                             {medicine.stock_quantity}

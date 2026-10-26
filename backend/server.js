@@ -1204,11 +1204,11 @@ app.get(
   async (_req, res) => {
     try {
       const { data, error } = await supabase
-        .from("medicine_inventory")
+        .from("medicines")
         .select(
-          "id, medicine_name, stock_quantity, dosage, expiration_date, updated_at",
+          "id, item_code, brand_name, generic_name, category, dosage_form, strength, stock_quantity, unit, expiration_date",
         )
-        .order("medicine_name", { ascending: true });
+        .order("generic_name", { ascending: true });
 
       if (error) {
         console.error("Medicine inventory lookup failed:", error.message);
@@ -1217,7 +1217,15 @@ app.get(
         });
       }
 
-      return res.json({ medicines: data || [] });
+      const medicines = (data || []).map((medicine) => ({
+        ...medicine,
+        medicine_name: medicine.brand_name || medicine.generic_name,
+        dosage: [medicine.dosage_form, medicine.strength]
+          .filter(Boolean)
+          .join(" "),
+      }));
+
+      return res.json({ medicines });
     } catch (error) {
       console.error("Medicine inventory lookup failed:", error.message);
       return res.status(500).json({
@@ -1261,15 +1269,17 @@ app.post(
       }
 
       const { data, error } = await supabase
-        .from("medicine_inventory")
+        .from("medicines")
         .insert({
-          medicine_name: medicineName,
-          dosage,
+          item_code: `MED-${randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`,
+          generic_name: medicineName,
+          category: "Clinic Inventory",
+          strength: dosage,
           expiration_date: expirationDate,
           stock_quantity: stockQuantity,
         })
         .select(
-          "id, medicine_name, stock_quantity, dosage, expiration_date, updated_at",
+          "id, item_code, brand_name, generic_name, category, dosage_form, strength, stock_quantity, unit, expiration_date",
         )
         .single();
 
@@ -1282,7 +1292,11 @@ app.post(
 
       return res.status(201).json({
         message: "Medicine added to inventory.",
-        medicine: data,
+        medicine: {
+          ...data,
+          medicine_name: data.brand_name || data.generic_name,
+          dosage: [data.dosage_form, data.strength].filter(Boolean).join(" "),
+        },
       });
     } catch (error) {
       console.error("Medicine creation failed:", error.message);
@@ -1334,7 +1348,11 @@ app.put(
 
       return res.json({
         message: "Medicine stock updated.",
-        medicine: data,
+        medicine: {
+          ...data,
+          medicine_name: data.brand_name || data.generic_name,
+          dosage: [data.dosage_form, data.strength].filter(Boolean).join(" "),
+        },
       });
     } catch (error) {
       console.error("Medicine restock failed:", error.message);
