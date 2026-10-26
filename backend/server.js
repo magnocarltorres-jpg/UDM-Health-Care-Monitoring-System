@@ -9,7 +9,6 @@ import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { rateLimit } from "express-rate-limit";
-import nodemailer from "nodemailer";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -355,13 +354,6 @@ function getTemporaryPassword() {
   return `UDM-${randomUUID()}!`;
 }
 
-const gmailTransporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
 
 async function sendStaffAccountEmail({
   email,
@@ -370,30 +362,52 @@ async function sendStaffAccountEmail({
   role,
   temporaryPassword,
 }) {
-  return gmailTransporter.sendMail({
-    from: `"UDM CLINIC" <${process.env.GMAIL_USER}>`,
-    to: email,
-    subject: "Your UDM CLINIC Staff Account",
-    text: [
-      `Hello ${name},`,
-      "",
-      "Your UDM CLINIC staff account has been created.",
-      "",
-      "ACCOUNT DETAILS",
-      `Name: ${name}`,
-      `Role: ${role}`,
-      `Staff ID: ${staffId}`,
-      `Temporary Password: ${temporaryPassword}`,
-      "",
-      "Log in using your Staff ID and temporary password.",
-      "You must change your password before accessing the clinic system.",
-      "",
-      "Please keep your account details private.",
-      "",
-      "UDM CLINIC",
-    ].join("\n"),
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+    throw new Error("Resend email environment variables are missing.");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: process.env.EMAIL_FROM,
+      to: [email],
+      subject: "Your UDM CLINIC Staff Account",
+      text: [
+        `Hello ${name},`,
+        "",
+        "Your UDM CLINIC staff account has been created.",
+        "",
+        "ACCOUNT DETAILS",
+        `Name: ${name}`,
+        `Role: ${role}`,
+        `Staff ID: ${staffId}`,
+        `Temporary Password: ${temporaryPassword}`,
+        "",
+        "Log in using your Staff ID and temporary password.",
+        "You must change your password before accessing the clinic system.",
+        "",
+        "Please keep your account details private.",
+        "",
+        "UDM CLINIC",
+      ].join("\n"),
+    }),
   });
+
+  if (!response.ok) {
+    const errorDetails = await response.text();
+
+    console.error("Resend staff email failed:", errorDetails);
+
+    throw new Error(`Email provider rejected the request (${response.status}).`);
+  }
+
+  return response.json();
 }
+
 
 app.post("/api/auth/login", loginLimiter, async (req, res) => {
   try {
