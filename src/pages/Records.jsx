@@ -14,7 +14,6 @@ import {
   UserRound,
   HeartPulse,
   AlertCircle,
-  ClipboardList,
 } from "lucide-react";
 
 const API_URL = `${(import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com").replace(/\/+$/, "")}/api/assessments`;
@@ -144,6 +143,9 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
       );
     })
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  const today = new Date().toLocaleDateString();
+  const todaysRecords = records.filter((record) => record.date === today).length;
 
   const startEditing = (record) => {
     setActionError("");
@@ -370,7 +372,7 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
   ];
 
   return (
-    <div className="flex min-h-screen min-w-0 bg-slate-50">
+    <div className="flex min-h-screen min-w-0 bg-[#f6f8f7]">
       <Sidebar
         user={currentUser}
         currentPage={currentPage}
@@ -379,28 +381,27 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
       />
 
       <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
-        <div className="mx-auto w-full max-w-[1600px]">
-          <header className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-green-950 via-green-900 to-green-800 p-5 text-white shadow-lg sm:mb-8 sm:p-8">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-green-50">
-                  <Activity size={14} />
-                  UDM CLINIC
-                </div>
-                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-                  Clinic Records
-                </h1>
+        <div className="mx-auto w-full max-w-[1500px]">
+          <header className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold tracking-wide text-emerald-900">
+                <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                UDM CLINIC
               </div>
-
-              <div className="flex shrink-0 items-center gap-3 self-start rounded-xl border border-white/15 bg-white/10 px-4 py-3 sm:self-auto">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-                  <ClipboardList size={22} />
-                </div>
-                <div>
-                  <p className="text-xs text-green-100">Total records</p>
-                  <p className="text-2xl font-bold tabular-nums">{records.length}</p>
-                </div>
-              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+                Clinic Records
+              </h1>
+              <p className="mt-2 text-sm text-slate-500">
+                Review patient visits and assessment history.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600 shadow-sm sm:self-auto">
+              <CalendarDays size={17} className="text-emerald-700" />
+              <span>{new Date().toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}</span>
             </div>
           </header>
 
@@ -424,33 +425,45 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
             </div>
           )}
 
-          <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section aria-label="Record summary" className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium text-slate-500">All assessments</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{records.length}</p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{records.length}</p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-green-800">
-                  <FileText size={23} />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800">
+                  <FileText size={21} />
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-slate-500">Search results</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{filteredRecords.length}</p>
+                  <p className="text-sm font-medium text-slate-500">Today's visits</p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{todaysRecords}</p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-                  <Search size={23} />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                  <CalendarDays size={21} />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Matching records</p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{filteredRecords.length}</p>
+                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
+                  <Search size={21} />
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <section className="mb-6 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="relative min-w-0 flex-1">
                 <Search
@@ -463,7 +476,7 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="Search name, Student Number, Patient ID, or visit reason..."
                   aria-label="Search clinic records"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-green-600 focus:bg-white focus:ring-4 focus:ring-green-100"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-700 focus:bg-white focus:ring-4 focus:ring-emerald-100"
                 />
                 {searchQuery && (
                   <button
