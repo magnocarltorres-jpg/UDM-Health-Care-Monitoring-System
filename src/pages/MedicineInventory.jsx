@@ -1,17 +1,18 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, PackagePlus } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 
 const API_URL = (
-  import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
+  import.meta.env.VITE_API_URL ||
+  "https://udm-health-care-api.onrender.com"
 ).replace(/\/+$/, "");
 
-function MedicineInventory({
-  user,
-  currentPage,
-  onNavigate,
-  onLogout,
-}) {
+const INPUT_CLASS =
+  "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-4 focus:ring-green-100";
+
+const LABEL_CLASS = "mb-2 block text-sm font-semibold text-slate-700";
+
+function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
   const [medicines, setMedicines] = useState([]);
   const [medicineName, setMedicineName] = useState("");
   const [dosage, setDosage] = useState("");
@@ -23,56 +24,65 @@ function MedicineInventory({
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const authHeaders = () => {
+  const authHeaders = useCallback(() => {
     const token = localStorage.getItem("udm_auth_token");
-    if (!token) throw new Error("Your session has expired. Please log in again.");
-    return { Authorization: `Bearer ${token}` };
-  };
 
-  const loadMedicines = async () => {
+    if (!token) {
+      throw new Error("Your session has expired. Please log in again.");
+    }
+
+    return { Authorization: `Bearer ${token}` };
+  }, []);
+
+  const loadMedicines = useCallback(async () => {
     const response = await fetch(`${API_URL}/api/medicines`, {
       headers: authHeaders(),
     });
+
     const result = await response.json().catch(() => ({}));
+
     if (!response.ok) {
-      throw new Error(result.message || "Unable to load medicine inventory.");
+      throw new Error(
+        result.message || "Unable to load medicine inventory.",
+      );
     }
-    setMedicines(Array.isArray(result.medicines) ? result.medicines : []);
-  };
+
+    setMedicines(
+      Array.isArray(result.medicines) ? result.medicines : [],
+    );
+  }, [authHeaders]);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    const load = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/medicines`, {
-          headers: authHeaders(),
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(result.message || "Unable to load medicine inventory.");
-        }
-        if (!cancelled) {
-          setMedicines(Array.isArray(result.medicines) ? result.medicines : []);
-        }
+        await loadMedicines();
       } catch (error) {
         if (!cancelled) {
-          setErrorMessage(error.message || "Unable to load medicine inventory.");
+          setErrorMessage(
+            error.message || "Unable to load medicine inventory.",
+          );
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-    }
+    };
 
     load();
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadMedicines]);
 
   const handleAddMedicine = async (event) => {
     event.preventDefault();
+
     if (saving) return;
+
     setSaving(true);
     setErrorMessage("");
     setSuccessMessage("");
@@ -91,16 +101,25 @@ function MedicineInventory({
           expirationDate,
         }),
       });
+
       const result = await response.json().catch(() => ({}));
+
       if (!response.ok) {
         throw new Error(result.message || "Unable to add medicine.");
       }
 
-      setMedicines((previous) =>
-        [...previous, result.medicine].sort((a, b) =>
-          a.medicine_name.localeCompare(b.medicine_name),
-        ),
-      );
+      if (result.medicine) {
+        setMedicines((previous) =>
+          [...previous, result.medicine].sort((a, b) =>
+            (a.medicine_name || "").localeCompare(
+              b.medicine_name || "",
+            ),
+          ),
+        );
+      } else {
+        await loadMedicines();
+      }
+
       setMedicineName("");
       setDosage("");
       setStockQuantity("");
@@ -115,10 +134,15 @@ function MedicineInventory({
 
   const handleRestock = async (medicineId) => {
     const quantity = Number(restockAmounts[medicineId]);
+
     if (!Number.isInteger(quantity) || quantity <= 0) {
-      setErrorMessage("Enter a positive whole-number quantity to restock.");
+      setErrorMessage(
+        "Enter a positive whole-number quantity to restock.",
+      );
       return;
     }
+
+    if (saving) return;
 
     setSaving(true);
     setErrorMessage("");
@@ -136,13 +160,20 @@ function MedicineInventory({
           body: JSON.stringify({ quantity }),
         },
       );
+
       const result = await response.json().catch(() => ({}));
+
       if (!response.ok) {
         throw new Error(result.message || "Unable to restock medicine.");
       }
 
       await loadMedicines();
-      setRestockAmounts((previous) => ({ ...previous, [medicineId]: "" }));
+
+      setRestockAmounts((previous) => ({
+        ...previous,
+        [medicineId]: "",
+      }));
+
       setSuccessMessage("Medicine stock updated.");
     } catch (error) {
       setErrorMessage(error.message || "Unable to restock medicine.");
@@ -150,10 +181,6 @@ function MedicineInventory({
       setSaving(false);
     }
   };
-
-  const inputClass =
-    "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-4 focus:ring-green-100";
-  const labelClass = "mb-2 block text-sm font-semibold text-slate-700";
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -163,6 +190,7 @@ function MedicineInventory({
         onNavigate={onNavigate}
         onLogout={onLogout}
       />
+
       <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
         <div className="mx-auto max-w-6xl">
           <button
@@ -190,9 +218,10 @@ function MedicineInventory({
             <h2 className="mb-5 text-lg font-bold text-slate-900">
               Add Medicine Batch
             </h2>
+
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <label htmlFor="medicineName" className={labelClass}>
+                <label htmlFor="medicineName" className={LABEL_CLASS}>
                   Medicine Name
                 </label>
                 <input
@@ -200,11 +229,12 @@ function MedicineInventory({
                   value={medicineName}
                   onChange={(event) => setMedicineName(event.target.value)}
                   required
-                  className={inputClass}
+                  className={INPUT_CLASS}
                 />
               </div>
+
               <div>
-                <label htmlFor="dosage" className={labelClass}>
+                <label htmlFor="dosage" className={LABEL_CLASS}>
                   Dosage
                 </label>
                 <input
@@ -213,11 +243,12 @@ function MedicineInventory({
                   onChange={(event) => setDosage(event.target.value)}
                   placeholder="e.g. 500 mg"
                   required
-                  className={inputClass}
+                  className={INPUT_CLASS}
                 />
               </div>
+
               <div>
-                <label htmlFor="stockQuantity" className={labelClass}>
+                <label htmlFor="stockQuantity" className={LABEL_CLASS}>
                   Initial Stock
                 </label>
                 <input
@@ -228,11 +259,12 @@ function MedicineInventory({
                   value={stockQuantity}
                   onChange={(event) => setStockQuantity(event.target.value)}
                   required
-                  className={inputClass}
+                  className={INPUT_CLASS}
                 />
               </div>
+
               <div>
-                <label htmlFor="expirationDate" className={labelClass}>
+                <label htmlFor="expirationDate" className={LABEL_CLASS}>
                   Expiration Date
                 </label>
                 <input
@@ -241,27 +273,35 @@ function MedicineInventory({
                   value={expirationDate}
                   onChange={(event) => setExpirationDate(event.target.value)}
                   required
-                  className={inputClass}
+                  className={INPUT_CLASS}
                 />
               </div>
             </div>
+
             <button
               type="submit"
               disabled={saving}
               className="mt-5 inline-flex items-center gap-2 rounded-xl bg-green-900 px-5 py-3 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-60"
             >
               <PackagePlus size={18} />
-              Add to Inventory
+              {saving ? "Saving..." : "Add to Inventory"}
             </button>
           </form>
 
           {errorMessage && (
-            <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">
+            <p
+              role="alert"
+              className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-800"
+            >
               {errorMessage}
             </p>
           )}
+
           {successMessage && (
-            <p role="status" className="mb-4 rounded-xl bg-green-50 p-4 text-sm text-green-800">
+            <p
+              role="status"
+              className="mb-4 rounded-xl bg-green-50 p-4 text-sm text-green-800"
+            >
               {successMessage}
             </p>
           )}
@@ -270,8 +310,11 @@ function MedicineInventory({
             <div className="border-b border-slate-100 px-5 py-4">
               <h2 className="font-bold text-slate-900">Stock on Hand</h2>
             </div>
+
             {loading ? (
-              <p className="p-6 text-sm text-slate-500">Loading inventory...</p>
+              <p className="p-6 text-sm text-slate-500">
+                Loading inventory...
+              </p>
             ) : medicines.length === 0 ? (
               <p className="p-6 text-sm text-slate-500">
                 No medicine has been added to inventory.
@@ -280,8 +323,10 @@ function MedicineInventory({
               <div className="divide-y divide-slate-100">
                 {medicines.map((medicine) => {
                   const expired =
+                    medicine.expiration_date &&
                     medicine.expiration_date <
-                    new Date().toISOString().slice(0, 10);
+                      new Date().toISOString().slice(0, 10);
+
                   return (
                     <article
                       key={medicine.id}
@@ -294,19 +339,23 @@ function MedicineInventory({
                             ({medicine.dosage})
                           </span>
                         </h3>
-                        {medicine.brand_name && (
+
+                        {medicine.generic_name && (
                           <p className="mt-1 text-sm text-slate-500">
                             Generic: {medicine.generic_name}
                           </p>
                         )}
+
                         <p className="mt-1 text-sm text-slate-500">
-                          Code: {medicine.item_code}
+                          Code: {medicine.item_code || "--"}
                           {" · "}
                           Stock:{" "}
                           <strong className="text-slate-800">
                             {medicine.stock_quantity}
                           </strong>
-                          {" · "}Expires: {medicine.expiration_date}
+                          {" · "}
+                          Expires: {medicine.expiration_date || "--"}
+
                           {expired && (
                             <span className="ml-2 font-semibold text-red-700">
                               Expired
@@ -314,6 +363,7 @@ function MedicineInventory({
                           )}
                         </p>
                       </div>
+
                       <div className="flex gap-2">
                         <input
                           type="number"
@@ -330,6 +380,7 @@ function MedicineInventory({
                           placeholder="Qty"
                           className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm"
                         />
+
                         <button
                           type="button"
                           disabled={saving}
