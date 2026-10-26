@@ -32,6 +32,7 @@ const API_URL = (
 
 const emptyForm = {
   name: "",
+  email: "",
   password: "",
   role: "Nurse",
 };
@@ -393,6 +394,7 @@ export default function AdminPanel({ user, onLogout }) {
     setForm({ ...emptyForm });
   };
 
+ 
   const handleFormSubmit = async (event) => {
     event.preventDefault();
 
@@ -402,6 +404,7 @@ export default function AdminPanel({ user, onLogout }) {
     setNotice("");
 
     const name = form.name.trim();
+    const gmail = form.gmail.trim().toLowerCase();
     const password = form.password;
     const role = form.role;
 
@@ -412,6 +415,16 @@ export default function AdminPanel({ user, onLogout }) {
 
     if (name.length > 120) {
       setError("Full name must not exceed 120 characters.");
+      return;
+    }
+
+    if (!gmail) {
+      setError("Gmail address is required.");
+      return;
+    }
+
+    if (!/^[^\s@]+@gmail\.com$/i.test(gmail)) {
+      setError("Please enter a valid Gmail address ending in @gmail.com.");
       return;
     }
 
@@ -433,6 +446,8 @@ export default function AdminPanel({ user, onLogout }) {
         headers: getHeaders(),
         body: JSON.stringify({
           name,
+          gmail,
+          email: gmail,
           password,
           role,
         }),
@@ -446,11 +461,15 @@ export default function AdminPanel({ user, onLogout }) {
       setFormOpen(false);
       setForm({ ...emptyForm });
 
-      setNotice(
-        generatedStaffId
-          ? `${result.message || "Staff account created successfully."} Generated Staff ID: ${generatedStaffId}`
-          : result.message || "Staff account created successfully.",
-      );
+      if (result.emailSent === false) {
+        setNotice(
+          `The account was created, but the email could not be sent. Check your Render logs before trying again.${generatedStaffId ? ` Staff ID: ${generatedStaffId}` : ""}`,
+        );
+      } else {
+        setNotice(
+          `${result.message || "Staff account created successfully."}${generatedStaffId ? ` Generated Staff ID: ${generatedStaffId}` : ""} Check that the staff member receives the email.`,
+        );
+      }
 
       await loadStaff();
     } catch (err) {
@@ -460,65 +479,6 @@ export default function AdminPanel({ user, onLogout }) {
     }
   };
 
-  const handleStatusToggle = async (member) => {
-    if (saving) return;
-
-    setError("");
-    setNotice("");
-
-    if (isAdministratorAccount(member)) {
-      setError("Administrator accounts cannot be activated or deactivated here.");
-      return;
-    }
-
-    const isCurrentUser =
-      currentStaffId != null &&
-      String(currentStaffId) === String(member.id);
-
-    if (isCurrentUser && isActiveAccount(member)) {
-      setError("You cannot deactivate your own account.");
-      return;
-    }
-
-    if (!member.id) {
-      setError("This account has no valid database ID.");
-      return;
-    }
-
-    const nextStatus = isActiveAccount(member) ? "Inactive" : "Active";
-
-    const confirmed = window.confirm(
-      `${nextStatus === "Inactive" ? "Deactivate" : "Activate"} ${member.name}'s account?`,
-    );
-
-    if (!confirmed) return;
-
-    setSaving(true);
-
-    try {
-      const response = await fetch(
-        `${API_URL}/api/admin/staff/${encodeURIComponent(member.id)}/status`,
-        {
-          method: "PATCH",
-          headers: getHeaders(),
-          body: JSON.stringify({ status: nextStatus }),
-        },
-      );
-
-      const result = await readResponse(response);
-
-      setNotice(
-        result.message ||
-          `${member.name}'s account has been ${nextStatus.toLowerCase()}.`,
-      );
-
-      await loadStaff();
-    } catch (err) {
-      setError(err.message || "Unable to update the account status.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleDelete = async (member) => {
     if (saving) return;
@@ -1777,6 +1737,37 @@ export default function AdminPanel({ user, onLogout }) {
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-green-700 focus:bg-white focus:ring-4 focus:ring-green-100"
                 />
               </div>
+
+                <div>
+                  <label
+                    htmlFor="staffGmail"
+                    className="mb-2 block text-sm font-semibold text-gray-700"
+                  >
+                    Gmail address
+                  </label>
+
+                  <input
+                    id="staffGmail"
+                    name="gmail"
+                    type="email"
+                    required
+                    maxLength={254}
+                    value={form.gmail}
+                    onChange={(event) =>
+                      setForm((previous) => ({
+                        ...previous,
+                        gmail: event.target.value,
+                      }))
+                    }
+                    autoComplete="email"
+                    placeholder="Enter the staff member's Gmail address"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-green-700 focus:bg-white focus:ring-4 focus:ring-green-100"
+                  />
+
+                  <p className="mt-2 text-xs leading-5 text-gray-500">
+                    The staff member's email address will be used to send their login details.
+                  </p>
+                </div>
 
               <div>
                 <label
