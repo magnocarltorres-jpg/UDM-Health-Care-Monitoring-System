@@ -106,21 +106,6 @@ function AddPatient({
               />
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Patient ID
-              </label>
-
-              <input
-                type="text"
-                value={patientId}
-                onChange={(event) => setPatientId(event.target.value)}
-                placeholder="e.g. PT-0002"
-                required
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
-              />
-            </div>
-
             <div className="md:col-span-2">
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 Full Name
