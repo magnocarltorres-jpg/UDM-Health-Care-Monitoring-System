@@ -14,3 +14,12 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Database migration
+
+The backend uses Supabase (PostgreSQL). Before deploying the clinic extensions,
+run [`backend/migrations/20261027_clinic_extensions.sql`](./backend/migrations/20261027_clinic_extensions.sql)
+against the project's PostgreSQL database using the Supabase SQL Editor or your
+usual migration workflow. This creates the course lookup, medicine inventory,
+dispensation, and drug-test tables, adds guardian fields to patients, and
+installs the transactional medicine-dispensing functions used by the API.

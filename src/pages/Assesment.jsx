@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import {
   ArrowLeft,
@@ -10,11 +10,14 @@ import {
   HeartPulse,
   Thermometer,
   Activity,
-  ClipboardCheck,
   FileText,
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
+
+const API_URL = (
+  import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
+).replace(/\/+$/, "");
 
 function Assessment({
   user,
@@ -37,9 +40,48 @@ function Assessment({
   const [spo2, setSpo2] = useState("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
+  const [medicines, setMedicines] = useState([]);
+  const [medicineId, setMedicineId] = useState("");
+  const [dispenseQuantity, setDispenseQuantity] = useState("");
+  const [inventoryError, setInventoryError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMedicines() {
+      try {
+        const token = localStorage.getItem("udm_auth_token");
+        if (!token) {
+          throw new Error("Your session has expired. Please log in again.");
+        }
+
+        const response = await fetch(`${API_URL}/api/medicines`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(result.message || "Unable to load medicine inventory.");
+        }
+
+        if (!cancelled) {
+          setMedicines(Array.isArray(result.medicines) ? result.medicines : []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setInventoryError(error.message || "Unable to load medicine inventory.");
+        }
+      }
+    }
+
+    loadMedicines();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const calculateBMI = () => {
     if (!height.trim() || !weight.trim()) {
@@ -196,15 +238,13 @@ function Assessment({
       bmiStatus: getBMIStatus(),
       reason: reason.trim(),
       notes: notes.trim(),
+      medicineId: medicineId || null,
+      dispenseQuantity: dispenseQuantity || null,
     };
 
     setIsSaving(true);
 
     try {
-   const API_URL = (
-  import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
-).replace(/\/+$/, "");
-
       const response = await fetch(`${API_URL}/api/assessments`, {
         method: "POST",
         headers: {
@@ -260,6 +300,8 @@ function Assessment({
         await onSaveAssessment(savedAssessment);
       }
 
+      setMedicineId("");
+      setDispenseQuantity("");
       setSaveSuccess("Assessment saved successfully.");
     } catch (error) {
       setSaveError(
@@ -584,6 +626,81 @@ function Assessment({
                   </div>
                 );
               })}
+            </div>
+          </section>
+
+          <section className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-100 px-5 py-5 sm:px-6">
+              <h2 className="text-lg font-bold text-gray-900">
+                Dispense Medicine (Optional)
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Dispensed quantity is deducted from available stock when this visit is saved.
+              </p>
+            </div>
+            <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
+              <div>
+                <label className={labelClass} htmlFor="medicineId">
+                  Medicine
+                </label>
+                <select
+                  id="medicineId"
+                  value={medicineId}
+                  onChange={(event) => setMedicineId(event.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">No medicine dispensed</option>
+                  {medicines
+                    .filter(
+                      (medicine) =>
+                        medicine.stock_quantity > 0 &&
+                        medicine.expiration_date >=
+                          new Date().toISOString().slice(0, 10),
+                    )
+                    .map((medicine) => (
+                      <option key={medicine.id} value={medicine.id}>
+                        {medicine.medicine_name} ({medicine.dosage}) —{" "}
+                        {medicine.stock_quantity} in stock
+                      </option>
+                    ))}
+                </select>
+                {inventoryError && (
+                  <p role="alert" className="mt-2 text-sm text-red-700">
+                    {inventoryError}
+                  </p>
+                )}
+                {!inventoryError &&
+                  medicines.filter(
+                    (medicine) =>
+                      medicine.stock_quantity > 0 &&
+                      medicine.expiration_date >=
+                        new Date().toISOString().slice(0, 10),
+                  ).length === 0 && (
+                    <p className="mt-2 text-sm text-gray-500">
+                      No unexpired medicine is currently in stock.
+                    </p>
+                  )}
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="dispenseQuantity">
+                  Quantity to Dispense
+                </label>
+                <input
+                  id="dispenseQuantity"
+                  type="number"
+                  min="1"
+                  max={
+                    medicines.find(
+                      (medicine) => String(medicine.id) === medicineId,
+                    )?.stock_quantity || undefined
+                  }
+                  value={dispenseQuantity}
+                  onChange={(event) => setDispenseQuantity(event.target.value)}
+                  disabled={!medicineId}
+                  required={Boolean(medicineId)}
+                  className={inputClass}
+                />
+              </div>
             </div>
           </section>
 

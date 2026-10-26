@@ -16,7 +16,11 @@ import {
   GraduationCap,
   ShieldCheck,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const API_URL = (
+  import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
+).replace(/\/+$/, "");
 
 function PatientProfile({
   user,
@@ -28,6 +32,15 @@ function PatientProfile({
   onLogout,
 }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [drugTests, setDrugTests] = useState([]);
+  const [drugTestsLoading, setDrugTestsLoading] = useState(false);
+  const [drugTestError, setDrugTestError] = useState("");
+  const [testingDate, setTestingDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [drugTestStatus, setDrugTestStatus] = useState("");
+  const [drugTestRemarks, setDrugTestRemarks] = useState("");
+  const [savingDrugTest, setSavingDrugTest] = useState(false);
 
   const currentUser = user || {
     name: "Clinic Staff",
@@ -48,7 +61,97 @@ function PatientProfile({
     { label: "Age", value: patient?.age },
     { label: "Sex", value: patient?.sex },
     { label: "Address", value: patient?.address, fullWidth: true },
+    { label: "Guardian Name", value: patient?.guardianName },
+    { label: "Guardian Relationship", value: patient?.guardianRelationship },
+    {
+      label: "Guardian Contact Number",
+      value: patient?.guardianContactNumber,
+    },
   ];
+
+  useEffect(() => {
+    if (!patient?.id) return undefined;
+
+    let cancelled = false;
+
+    async function loadDrugTests() {
+      setDrugTestsLoading(true);
+      setDrugTestError("");
+
+      try {
+        const token = localStorage.getItem("udm_auth_token");
+        if (!token) {
+          throw new Error("Your session has expired. Please log in again.");
+        }
+
+        const response = await fetch(
+          `${API_URL}/api/patients/${encodeURIComponent(patient.id)}/drug-tests`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(result.message || "Unable to load drug test results.");
+        }
+
+        if (!cancelled) {
+          setDrugTests(Array.isArray(result.drugTests) ? result.drugTests : []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDrugTestError(error.message || "Unable to load drug test results.");
+        }
+      } finally {
+        if (!cancelled) setDrugTestsLoading(false);
+      }
+    }
+
+    loadDrugTests();
+    return () => {
+      cancelled = true;
+    };
+  }, [patient?.id]);
+
+  const handleDrugTestSubmit = async (event) => {
+    event.preventDefault();
+    if (!patient?.id || savingDrugTest) return;
+    setSavingDrugTest(true);
+    setDrugTestError("");
+
+    try {
+      const token = localStorage.getItem("udm_auth_token");
+      if (!token) {
+        throw new Error("Your session has expired. Please log in again.");
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/patients/${encodeURIComponent(patient.id)}/drug-tests`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            testingDate,
+            status: drugTestStatus,
+            remarks: drugTestRemarks.trim(),
+          }),
+        },
+      );
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.message || "Unable to save the drug test result.");
+      }
+
+      setDrugTests((previous) => [result.drugTest, ...previous]);
+      setDrugTestStatus("");
+      setDrugTestRemarks("");
+    } catch (error) {
+      setDrugTestError(error.message || "Unable to save the drug test result.");
+    } finally {
+      setSavingDrugTest(false);
+    }
+  };
 
   const vitalItems = [
     {
@@ -275,6 +378,117 @@ function PatientProfile({
                   </p>
                 </div>
               ))}
+            </div>
+          </section>
+
+          <section className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-100 px-5 py-5 sm:px-6">
+              <h2 className="text-lg font-bold text-gray-900">
+                Drug Test Results
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Results are saved directly to this patient's record.
+              </p>
+            </div>
+
+            <form
+              onSubmit={handleDrugTestSubmit}
+              className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6"
+            >
+              <div>
+                <label htmlFor="testingDate" className="mb-2 block text-sm font-semibold text-gray-700">
+                  Testing Date
+                </label>
+                <input
+                  id="testingDate"
+                  type="date"
+                  value={testingDate}
+                  onChange={(event) => setTestingDate(event.target.value)}
+                  required
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-4 focus:ring-green-100"
+                />
+              </div>
+              <div>
+                <label htmlFor="drugTestStatus" className="mb-2 block text-sm font-semibold text-gray-700">
+                  Status
+                </label>
+                <select
+                  id="drugTestStatus"
+                  value={drugTestStatus}
+                  onChange={(event) => setDrugTestStatus(event.target.value)}
+                  required
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-4 focus:ring-green-100"
+                >
+                  <option value="">Select result</option>
+                  <option value="Negative">Negative</option>
+                  <option value="Positive">Positive</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="drugTestRemarks" className="mb-2 block text-sm font-semibold text-gray-700">
+                  Remarks
+                </label>
+                <textarea
+                  id="drugTestRemarks"
+                  value={drugTestRemarks}
+                  onChange={(event) => setDrugTestRemarks(event.target.value)}
+                  rows={2}
+                  className="w-full resize-y rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-4 focus:ring-green-100"
+                />
+              </div>
+              {drugTestError && (
+                <p role="alert" className="sm:col-span-2 text-sm text-red-700">
+                  {drugTestError}
+                </p>
+              )}
+              <div className="sm:col-span-2">
+                <button
+                  type="submit"
+                  disabled={savingDrugTest}
+                  className="rounded-xl bg-green-900 px-5 py-3 text-sm font-semibold text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {savingDrugTest ? "Saving..." : "Save Drug Test"}
+                </button>
+              </div>
+            </form>
+
+            <div className="border-t border-gray-100">
+              {drugTestsLoading ? (
+                <p className="p-5 text-sm text-gray-500">Loading drug tests...</p>
+              ) : drugTests.length === 0 ? (
+                <p className="p-5 text-sm text-gray-500">
+                  No drug test results recorded for this patient.
+                </p>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {drugTests.map((test) => (
+                    <article
+                      key={test.id}
+                      className="flex flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {test.testing_date}
+                        </p>
+                        {test.remarks && (
+                          <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600">
+                            {test.remarks}
+                          </p>
+                        )}
+                      </div>
+                      <span
+                        className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${
+                          test.status === "Positive"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
+                        {test.status}
+                      </span>
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
 

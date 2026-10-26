@@ -284,6 +284,9 @@ function mapPatientRecord(patient) {
     age: patient.age,
     sex: patient.sex,
     address: patient.address,
+    guardianName: patient.guardian_name,
+    guardianRelationship: patient.guardian_relationship,
+    guardianContactNumber: patient.guardian_contact_number,
   };
 }
 
@@ -775,7 +778,7 @@ app.get(
 );
 
 const patientSelect =
-  "id, student_number, patient_id, name, course, year_level, age, sex, address, created_at";
+  "id, student_number, patient_id, name, course, year_level, age, sex, address, guardian_name, guardian_relationship, guardian_contact_number, created_at";
 
 
 function parsePatientInput(body = {}, options = {}) {
@@ -792,6 +795,9 @@ function parsePatientInput(body = {}, options = {}) {
     age,
     sex,
     address,
+    guardianName,
+    guardianRelationship,
+    guardianContactNumber,
   } = body;
 
   if (
@@ -800,12 +806,18 @@ function parsePatientInput(body = {}, options = {}) {
     (requirePatientId &&
       (typeof patientId !== "string" || !patientId.trim())) ||
     typeof name !== "string" ||
-    !name.trim()
+    !name.trim() ||
+    typeof body.guardianName !== "string" ||
+    !body.guardianName.trim() ||
+    typeof body.guardianRelationship !== "string" ||
+    !body.guardianRelationship.trim() ||
+    typeof body.guardianContactNumber !== "string" ||
+    !body.guardianContactNumber.trim()
   ) {
     return {
       error: requirePatientId
-        ? "Student Number, Patient ID, and Name are required."
-        : "Student Number and Name are required.",
+        ? "Student Number, Patient ID, Name, and guardian details are required."
+        : "Student Number, Name, and guardian details are required.",
     };
   }
 
@@ -855,8 +867,72 @@ function parsePatientInput(body = {}, options = {}) {
         typeof address === "string"
           ? address.trim() || null
           : null,
+
+      guardian_name:
+        typeof guardianName === "string"
+          ? guardianName.trim() || null
+          : null,
+
+      guardian_relationship:
+        typeof guardianRelationship === "string"
+          ? guardianRelationship.trim() || null
+          : null,
+
+      guardian_contact_number:
+        typeof guardianContactNumber === "string"
+          ? guardianContactNumber.trim() || null
+          : null,
     },
   };
+}
+
+app.get(
+  "/api/courses",
+  authenticateToken,
+  requireActiveStaff,
+  requireClinicStaff,
+  async (_req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("id, college_name, course_name")
+        .order("college_name", { ascending: true })
+        .order("course_name", { ascending: true });
+
+      if (error) {
+        console.error("Course lookup failed:", error.message);
+        return res.status(500).json({
+          message: "Unable to load course options.",
+        });
+      }
+
+      return res.json({ courses: data || [] });
+    } catch (error) {
+      console.error("Course lookup failed:", error.message);
+      return res.status(500).json({
+        message: "Unable to load course options.",
+      });
+    }
+  },
+);
+
+async function validatePatientCourse(course) {
+  if (typeof course !== "string" || !course.trim()) {
+    return "A course must be selected.";
+  }
+
+  const { data, error } = await supabase
+    .from("courses")
+    .select("id")
+    .eq("course_name", course.trim())
+    .maybeSingle();
+
+  if (error) {
+    console.error("Course validation failed:", error.message);
+    return "Unable to verify the selected course.";
+  }
+
+  return data ? null : "Select a valid course from the course list.";
 }
 
 app.get(
@@ -908,6 +984,16 @@ app.post(
       if (parsed.error) {
         return res.status(400).json({
           message: parsed.error,
+        });
+      }
+
+      const courseError = await validatePatientCourse(
+        parsed.values.course,
+      );
+
+      if (courseError) {
+        return res.status(courseError.startsWith("Unable") ? 500 : 400).json({
+          message: courseError,
         });
       }
 
@@ -998,6 +1084,16 @@ app.put(
       if (parsed.error) {
         return res.status(400).json({
           message: parsed.error,
+        });
+      }
+
+      const courseError = await validatePatientCourse(
+        parsed.values.course,
+      );
+
+      if (courseError) {
+        return res.status(courseError.startsWith("Unable") ? 500 : 400).json({
+          message: courseError,
         });
       }
 
@@ -1101,6 +1197,267 @@ app.delete(
 );
 
 app.get(
+  "/api/medicines",
+  authenticateToken,
+  requireActiveStaff,
+  requireClinicStaff,
+  async (_req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("medicine_inventory")
+        .select(
+          "id, medicine_name, stock_quantity, dosage, expiration_date, updated_at",
+        )
+        .order("medicine_name", { ascending: true });
+
+      if (error) {
+        console.error("Medicine inventory lookup failed:", error.message);
+        return res.status(500).json({
+          message: "Unable to load medicine inventory.",
+        });
+      }
+
+      return res.json({ medicines: data || [] });
+    } catch (error) {
+      console.error("Medicine inventory lookup failed:", error.message);
+      return res.status(500).json({
+        message: "Unable to load medicine inventory.",
+      });
+    }
+  },
+);
+
+app.post(
+  "/api/medicines",
+  authenticateToken,
+  requireActiveStaff,
+  requireClinicStaff,
+  async (req, res) => {
+    try {
+      const body = req.body || {};
+      const medicineName =
+        typeof body.medicineName === "string"
+          ? body.medicineName.trim()
+          : "";
+      const dosage =
+        typeof body.dosage === "string" ? body.dosage.trim() : "";
+      const expirationDate =
+        typeof body.expirationDate === "string"
+          ? body.expirationDate.trim()
+          : "";
+      const stockQuantity = Number(body.stockQuantity);
+
+      if (
+        !medicineName ||
+        !dosage ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(expirationDate) ||
+        !Number.isInteger(stockQuantity) ||
+        stockQuantity < 0
+      ) {
+        return res.status(400).json({
+          message:
+            "Medicine name, dosage, a valid expiration date, and a non-negative whole-number stock quantity are required.",
+        });
+      }
+
+      const { data, error } = await supabase
+        .from("medicine_inventory")
+        .insert({
+          medicine_name: medicineName,
+          dosage,
+          expiration_date: expirationDate,
+          stock_quantity: stockQuantity,
+        })
+        .select(
+          "id, medicine_name, stock_quantity, dosage, expiration_date, updated_at",
+        )
+        .single();
+
+      if (error) {
+        console.error("Medicine creation failed:", error.message);
+        return res.status(500).json({
+          message: "Unable to add the medicine to inventory.",
+        });
+      }
+
+      return res.status(201).json({
+        message: "Medicine added to inventory.",
+        medicine: data,
+      });
+    } catch (error) {
+      console.error("Medicine creation failed:", error.message);
+      return res.status(500).json({
+        message: "Unable to add the medicine to inventory.",
+      });
+    }
+  },
+);
+
+app.put(
+  "/api/medicines/:id/stock",
+  authenticateToken,
+  requireActiveStaff,
+  requireClinicStaff,
+  async (req, res) => {
+    try {
+      const medicineId = Number(req.params.id);
+      const quantity = Number(req.body?.quantity);
+
+      if (
+        !Number.isInteger(medicineId) ||
+        medicineId <= 0 ||
+        !Number.isInteger(quantity) ||
+        quantity <= 0
+      ) {
+        return res.status(400).json({
+          message: "A valid medicine and positive whole-number quantity are required.",
+        });
+      }
+
+      const { data, error } = await supabase.rpc("restock_medicine", {
+        p_medicine_id: medicineId,
+        p_quantity: quantity,
+      });
+
+      if (error) {
+        if (error.message?.includes("MEDICINE_NOT_FOUND")) {
+          return res.status(404).json({
+            message: "Medicine inventory item not found.",
+          });
+        }
+
+        console.error("Medicine restock failed:", error.message);
+        return res.status(500).json({
+          message: "Unable to restock the medicine.",
+        });
+      }
+
+      return res.json({
+        message: "Medicine stock updated.",
+        medicine: data,
+      });
+    } catch (error) {
+      console.error("Medicine restock failed:", error.message);
+      return res.status(500).json({
+        message: "Unable to restock the medicine.",
+      });
+    }
+  },
+);
+
+app.get(
+  "/api/patients/:id/drug-tests",
+  authenticateToken,
+  requireActiveStaff,
+  requireClinicStaff,
+  async (req, res) => {
+    try {
+      const patientId = Number(req.params.id);
+
+      if (!Number.isInteger(patientId) || patientId <= 0) {
+        return res.status(400).json({
+          message: "Invalid patient record ID.",
+        });
+      }
+
+      const { data, error } = await supabase
+        .from("drug_test_results")
+        .select("id, patient_id, testing_date, status, remarks, created_at")
+        .eq("patient_id", patientId)
+        .order("testing_date", { ascending: false })
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Drug test lookup failed:", error.message);
+        return res.status(500).json({
+          message: "Unable to load drug test results.",
+        });
+      }
+
+      return res.json({ drugTests: data || [] });
+    } catch (error) {
+      console.error("Drug test lookup failed:", error.message);
+      return res.status(500).json({
+        message: "Unable to load drug test results.",
+      });
+    }
+  },
+);
+
+app.post(
+  "/api/patients/:id/drug-tests",
+  authenticateToken,
+  requireActiveStaff,
+  requireClinicStaff,
+  async (req, res) => {
+    try {
+      const patientId = Number(req.params.id);
+      const body = req.body || {};
+      const testingDate =
+        typeof body.testingDate === "string"
+          ? body.testingDate.trim()
+          : "";
+      const status =
+        body.status === "Negative" || body.status === "Positive"
+          ? body.status
+          : "";
+      const remarks =
+        typeof body.remarks === "string" ? body.remarks.trim() : "";
+
+      if (!Number.isInteger(patientId) || patientId <= 0) {
+        return res.status(400).json({
+          message: "Invalid patient record ID.",
+        });
+      }
+
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(testingDate) ||
+        !status
+      ) {
+        return res.status(400).json({
+          message: "A valid testing date and result status are required.",
+        });
+      }
+
+      const { data, error } = await supabase
+        .from("drug_test_results")
+        .insert({
+          patient_id: patientId,
+          testing_date: testingDate,
+          status,
+          remarks: remarks || null,
+          recorded_by: req.staff.id,
+        })
+        .select("id, patient_id, testing_date, status, remarks, created_at")
+        .single();
+
+      if (error) {
+        if (error.code === "23503") {
+          return res.status(404).json({
+            message: "Patient record not found.",
+          });
+        }
+
+        console.error("Drug test creation failed:", error.message);
+        return res.status(500).json({
+          message: "Unable to save the drug test result.",
+        });
+      }
+
+      return res.status(201).json({
+        message: "Drug test result saved successfully.",
+        drugTest: data,
+      });
+    } catch (error) {
+      console.error("Drug test creation failed:", error.message);
+      return res.status(500).json({
+        message: "Unable to save the drug test result.",
+      });
+    }
+  },
+);
+
+app.get(
   "/api/assessments",
   authenticateToken,
   requireActiveStaff,
@@ -1165,9 +1522,19 @@ app.post(
         bmiStatus,
         reason,
         notes,
+        medicineId,
+        dispenseQuantity,
       } = body;
 
       const patientRecordId = Number(patientId);
+      const selectedMedicineId =
+        medicineId === "" || medicineId == null
+          ? null
+          : Number(medicineId);
+      const selectedDispenseQuantity =
+        dispenseQuantity === "" || dispenseQuantity == null
+          ? null
+          : Number(dispenseQuantity);
 
       if (
         !Number.isInteger(patientRecordId) ||
@@ -1175,6 +1542,28 @@ app.post(
       ) {
         return res.status(400).json({
           message: "A valid patient record is required.",
+        });
+      }
+
+      if (
+        (selectedMedicineId === null) !==
+        (selectedDispenseQuantity === null)
+      ) {
+        return res.status(400).json({
+          message:
+            "Select both a medicine and a dispense quantity, or leave both blank.",
+        });
+      }
+
+      if (
+        selectedMedicineId !== null &&
+        (!Number.isInteger(selectedMedicineId) ||
+          selectedMedicineId <= 0 ||
+          !Number.isInteger(selectedDispenseQuantity) ||
+          selectedDispenseQuantity <= 0)
+      ) {
+        return res.status(400).json({
+          message: "Medicine and dispense quantity must be valid.",
         });
       }
 
@@ -1256,37 +1645,46 @@ app.post(
         });
       }
 
-      const { data, error } = await supabase
-        .from("clinic_assessments")
-        .insert({
-          patient_id: patient.id,
-          student_number: patient.student_number,
-          patient_identifier: patient.patient_id,
-          height: values.height,
-          weight: values.weight,
-          blood_pressure: bloodPressure.trim(),
-          temperature: values.temperature,
-          heart_rate: values.heartRate,
-          spo2: values.spo2,
-          bmi: values.bmi,
-          bmi_status:
+      const { data, error } = await supabase.rpc(
+        "create_clinic_assessment",
+        {
+          p_patient_id: patient.id,
+          p_height: values.height,
+          p_weight: values.weight,
+          p_blood_pressure: bloodPressure.trim(),
+          p_temperature: values.temperature,
+          p_heart_rate: values.heartRate,
+          p_spo2: values.spo2,
+          p_bmi: values.bmi,
+          p_bmi_status:
             typeof bmiStatus === "string"
-              ? bmiStatus.trim()
+              ? bmiStatus.trim() || null
               : null,
-          reason:
+          p_reason:
             typeof reason === "string"
               ? reason.trim() || null
               : null,
-          notes:
+          p_notes:
             typeof notes === "string"
               ? notes.trim() || null
               : null,
-          recorded_by: req.staff.id,
-        })
-        .select()
-        .single();
+          p_recorded_by: req.staff.id,
+          p_medicine_id: selectedMedicineId,
+          p_dispense_quantity: selectedDispenseQuantity,
+        },
+      );
 
       if (error) {
+        if (
+          error.message?.includes("MEDICINE_UNAVAILABLE") ||
+          error.message?.includes("INVALID_DISPENSE_QUANTITY")
+        ) {
+          return res.status(409).json({
+            message:
+              "The selected medicine is expired or does not have enough stock.",
+          });
+        }
+
         console.error(
           "Assessment creation failed:",
           error.message,

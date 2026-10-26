@@ -6,6 +6,7 @@ import {
   Stethoscope,
   ClipboardCheck,
   FileText,
+  Pill,
   Settings,
   LogOut,
   ShieldCheck,
@@ -28,6 +29,7 @@ function Sidebar({ currentPage, onNavigate, user, onLogout }) {
     { label: "Nurses", page: "nurses", icon: Stethoscope },
     { label: "Assessment", page: "assessment", icon: ClipboardCheck },
     { label: "Records", page: "records", icon: FileText },
+    { label: "Medicine Inventory", page: "medicine-inventory", icon: Pill },
   ];
 
   const getInitials = (name) =>

@@ -1,6 +1,10 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
+
+const API_URL = (
+  import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
+).replace(/\/+$/, "");
 
 function AddPatient({
   user,
@@ -16,8 +20,55 @@ function AddPatient({
   const [age, setAge] = useState("");
   const [sex, setSex] = useState("");
   const [address, setAddress] = useState("");
+  const [guardianName, setGuardianName] = useState("");
+  const [guardianRelationship, setGuardianRelationship] = useState("");
+  const [guardianContactNumber, setGuardianContactNumber] = useState("");
+  const [courses, setCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [coursesError, setCoursesError] = useState("");
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCourses() {
+      setCoursesLoading(true);
+      setCoursesError("");
+
+      try {
+        const token = localStorage.getItem("udm_auth_token");
+
+        if (!token) {
+          throw new Error("Your session has expired. Please log in again.");
+        }
+
+        const response = await fetch(`${API_URL}/api/courses`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(result.message || "Unable to load course options.");
+        }
+
+        if (!cancelled) {
+          setCourses(Array.isArray(result.courses) ? result.courses : []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCoursesError(error.message || "Unable to load course options.");
+        }
+      } finally {
+        if (!cancelled) setCoursesLoading(false);
+      }
+    }
+
+    loadCourses();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -33,7 +84,7 @@ function AddPatient({
     setSaving(true);
 
     try {
-      const response = await fetch("https://udm-health-care-api.onrender.com/api/patients", {
+      const response = await fetch(`${API_URL}/api/patients`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -42,11 +93,14 @@ function AddPatient({
     body: JSON.stringify({
   studentNumber: studentNumber.trim(),
   name: name.trim(),
-  course: course.trim(),
+  course,
   yearLevel,
   age: age === "" ? null : Number(age),
   sex,
   address: address.trim(),
+  guardianName: guardianName.trim(),
+  guardianRelationship: guardianRelationship.trim(),
+  guardianContactNumber: guardianContactNumber.trim(),
 }),
       });
 
@@ -126,14 +180,27 @@ function AddPatient({
                 Course
               </label>
 
-              <input
-                type="text"
+              <select
                 value={course}
                 onChange={(event) => setCourse(event.target.value)}
-                placeholder="e.g. BSIT"
                 required
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
-              />
+                disabled={coursesLoading || courses.length === 0}
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+              >
+                <option value="">
+                  {coursesLoading ? "Loading courses..." : "Select course"}
+                </option>
+                {courses.map((item) => (
+                  <option key={item.id} value={item.course_name}>
+                    {item.college_name} — {item.course_name}
+                  </option>
+                ))}
+              </select>
+              {coursesError && (
+                <p role="alert" className="mt-2 text-sm text-red-700">
+                  {coursesError}
+                </p>
+              )}
             </div>
 
             <div>
@@ -203,6 +270,56 @@ function AddPatient({
                 className="w-full resize-none rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-100"
               />
             </div>
+
+            <div className="md:col-span-2 border-t border-slate-100 pt-6">
+              <h2 className="text-lg font-semibold text-slate-800">
+                Guardian Information
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Contact details for the patient's guardian or emergency contact.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Guardian Name
+              </label>
+              <input
+                type="text"
+                value={guardianName}
+                onChange={(event) => setGuardianName(event.target.value)}
+                required
+                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Relationship
+              </label>
+              <input
+                type="text"
+                value={guardianRelationship}
+                onChange={(event) => setGuardianRelationship(event.target.value)}
+                placeholder="e.g. Parent, sibling"
+                required
+                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Guardian Contact Number
+              </label>
+              <input
+                type="tel"
+                value={guardianContactNumber}
+                onChange={(event) => setGuardianContactNumber(event.target.value)}
+                placeholder="e.g. 09XXXXXXXXX"
+                required
+                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
+              />
+            </div>
           </div>
 
           {errorMessage && (
@@ -226,7 +343,7 @@ function AddPatient({
 
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || coursesLoading || courses.length === 0}
               className="rounded-lg bg-green-700 px-5 py-3 font-medium text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? "Saving..." : "Save Patient"}

@@ -25,6 +25,16 @@ function EditPatient({
   const [age, setAge] = useState(patient?.age ?? "");
   const [sex, setSex] = useState(patient?.sex || "");
   const [address, setAddress] = useState(patient?.address || "");
+  const [guardianName, setGuardianName] = useState(patient?.guardianName || "");
+  const [guardianRelationship, setGuardianRelationship] = useState(
+    patient?.guardianRelationship || "",
+  );
+  const [guardianContactNumber, setGuardianContactNumber] = useState(
+    patient?.guardianContactNumber || "",
+  );
+  const [courses, setCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [coursesError, setCoursesError] = useState("");
 
   const currentUser = user || {
     name: "Clinic Staff",
@@ -32,15 +42,43 @@ function EditPatient({
   };
 
   useEffect(() => {
-    setStudentNumber(patient?.studentNumber || "");
-    setPatientId(patient?.patientId || "");
-    setName(patient?.name || "");
-    setCourse(patient?.course || "");
-    setYearLevel(patient?.yearLevel || "");
-    setAge(patient?.age ?? "");
-    setSex(patient?.sex || "");
-    setAddress(patient?.address || "");
-  }, [patient]);
+    let cancelled = false;
+
+    async function loadCourses() {
+      try {
+        const token = localStorage.getItem("udm_auth_token");
+
+        if (!token) {
+          throw new Error("Your session has expired. Please log in again.");
+        }
+
+        const response = await fetch(
+          `${(import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com").replace(/\/+$/, "")}/api/courses`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(result.message || "Unable to load course options.");
+        }
+
+        if (!cancelled) {
+          setCourses(Array.isArray(result.courses) ? result.courses : []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCoursesError(error.message || "Unable to load course options.");
+        }
+      } finally {
+        if (!cancelled) setCoursesLoading(false);
+      }
+    }
+
+    loadCourses();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -54,7 +92,10 @@ function EditPatient({
       age === "" ||
       Number(age) <= 0 ||
       !sex ||
-      !address.trim()
+      !address.trim() ||
+      !guardianName.trim() ||
+      !guardianRelationship.trim() ||
+      !guardianContactNumber.trim()
     ) {
       alert("Please complete all fields with valid information.");
       return;
@@ -70,6 +111,9 @@ function EditPatient({
       age: Number(age),
       sex,
       address: address.trim(),
+      guardianName: guardianName.trim(),
+      guardianRelationship: guardianRelationship.trim(),
+      guardianContactNumber: guardianContactNumber.trim(),
     });
   };
 
@@ -202,15 +246,28 @@ function EditPatient({
                   <label htmlFor="course" className={labelClass}>
                     Course
                   </label>
-                  <input
+                  <select
                     id="course"
-                    type="text"
                     value={course}
                     onChange={(event) => setCourse(event.target.value)}
-                    placeholder="e.g. BSIT"
                     required
+                    disabled={coursesLoading || courses.length === 0}
                     className={inputClass}
-                  />
+                  >
+                    <option value="">
+                      {coursesLoading ? "Loading courses..." : "Select course"}
+                    </option>
+                    {courses.map((item) => (
+                      <option key={item.id} value={item.course_name}>
+                        {item.college_name} — {item.course_name}
+                      </option>
+                    ))}
+                  </select>
+                  {coursesError && (
+                    <p role="alert" className="mt-2 text-sm text-red-700">
+                      {coursesError}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -223,6 +280,63 @@ function EditPatient({
                     value={yearLevel}
                     onChange={(event) => setYearLevel(event.target.value)}
                     placeholder="e.g. 2nd Year"
+                    required
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="border-b border-slate-100 p-5 sm:p-8">
+              <div className="mb-6">
+                <h2 className="font-bold text-slate-800">
+                  Guardian Information
+                </h2>
+                <p className="text-sm text-slate-500">
+                  Guardian or emergency contact details.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="guardianName" className={labelClass}>
+                    Guardian Name
+                  </label>
+                  <input
+                    id="guardianName"
+                    type="text"
+                    value={guardianName}
+                    onChange={(event) => setGuardianName(event.target.value)}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="guardianRelationship" className={labelClass}>
+                    Relationship
+                  </label>
+                  <input
+                    id="guardianRelationship"
+                    type="text"
+                    value={guardianRelationship}
+                    onChange={(event) =>
+                      setGuardianRelationship(event.target.value)
+                    }
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="guardianContactNumber" className={labelClass}>
+                    Guardian Contact Number
+                  </label>
+                  <input
+                    id="guardianContactNumber"
+                    type="tel"
+                    value={guardianContactNumber}
+                    onChange={(event) =>
+                      setGuardianContactNumber(event.target.value)
+                    }
                     required
                     className={inputClass}
                   />

@@ -15,6 +15,7 @@ import EditNurse from "./pages/EditNurse";
 import Settings from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
 import ChangePassword from "./pages/ChangePassword";
+import MedicineInventory from "./pages/MedicineInventory";
 
 
 const API_URL = (
@@ -753,6 +754,17 @@ if (currentPage === "settings") {
         clinicHistory={clinicHistory}
         onNavigate={handleNavigate}
         onViewRecord={handleRecordView}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (currentPage === "medicine-inventory") {
+    return (
+      <MedicineInventory
+        user={user}
+        currentPage={currentPage}
+        onNavigate={handleNavigate}
         onLogout={handleLogout}
       />
     );
