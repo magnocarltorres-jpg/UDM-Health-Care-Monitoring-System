@@ -365,139 +365,72 @@ async function sendStaffAccountEmail({
   role,
   temporaryPassword,
 }) {
-  const requiredEmailVariables = [
-    "GMAIL_USER",
-    "GMAIL_CLIENT_ID",
-    "GMAIL_CLIENT_SECRET",
-    "GMAIL_REFRESH_TOKEN",
-  ];
-  const missingEmailVariables = requiredEmailVariables.filter(
-    (key) => !process.env[key],
-  );
-
-  if (missingEmailVariables.length > 0) {
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
     throw new Error(
-      `Gmail API is not configured. Set ${missingEmailVariables.join(", ")} in Render.`,
+      "Resend is not configured. Set RESEND_API_KEY and EMAIL_FROM in Render.",
     );
   }
 
-  const tokenController = new AbortController();
-  const tokenTimeout = setTimeout(
-    () => tokenController.abort(),
-    15000,
-  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
-  let tokenResponse;
+  let response;
   try {
-    tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+    response = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      signal: tokenController.signal,
-      body: new URLSearchParams({
-        client_id: process.env.GMAIL_CLIENT_ID,
-        client_secret: process.env.GMAIL_CLIENT_SECRET,
-        refresh_token: process.env.GMAIL_REFRESH_TOKEN,
-        grant_type: "refresh_token",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM,
+        to: [email],
+        subject: "Your UDM CLINIC Staff Account",
+        text: [
+          `Hello ${name},`,
+          "",
+          "Your UDM CLINIC staff account has been created.",
+          "",
+          "ACCOUNT DETAILS",
+          `Name: ${name}`,
+          `Role: ${role}`,
+          `Staff ID: ${staffId}`,
+          `Temporary Password: ${temporaryPassword}`,
+          "",
+          "Log in using your Staff ID and temporary password.",
+          "You must change your password before accessing the clinic system.",
+          "",
+          "Please keep your account details private.",
+          "",
+          "UDM CLINIC",
+        ].join("\n"),
       }),
     });
   } finally {
-    clearTimeout(tokenTimeout);
+    clearTimeout(timeout);
   }
 
-  const tokenResult = await tokenResponse.json().catch(() => ({}));
+  const result = await response.json().catch(() => ({}));
 
-  if (!tokenResponse.ok || typeof tokenResult.access_token !== "string") {
-    const description =
-      typeof tokenResult.error_description === "string"
-        ? tokenResult.error_description
-        : typeof tokenResult.error === "string"
-          ? tokenResult.error
-          : `HTTP ${tokenResponse.status}`;
-
-    console.error("Gmail OAuth token request failed:", description);
-    throw new Error(`Gmail authorization failed: ${description}`);
-  }
-
-  const messageText = [
-    `Hello ${name},`,
-    "",
-    "Your UDM CLINIC staff account has been created.",
-    "",
-    "ACCOUNT DETAILS",
-    `Name: ${name}`,
-    `Role: ${role}`,
-    `Staff ID: ${staffId}`,
-    `Temporary Password: ${temporaryPassword}`,
-    "",
-    "Log in using your Staff ID and temporary password.",
-    "You must change your password before accessing the clinic system.",
-    "",
-    "Please keep your account details private.",
-    "",
-    "UDM CLINIC",
-  ].join("\n");
-  const encodedBody = Buffer.from(messageText, "utf8")
-    .toString("base64")
-    .match(/.{1,76}/g)
-    .join("\r\n");
-  const mimeMessage = [
-    `From: UDM CLINIC <${process.env.GMAIL_USER}>`,
-    `To: ${email}`,
-    "Subject: Your UDM CLINIC Staff Account",
-    "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
-    "Content-Transfer-Encoding: base64",
-    "",
-    encodedBody,
-  ].join("\r\n");
-  const rawMessage = Buffer.from(mimeMessage, "utf8")
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
-  const sendController = new AbortController();
-  const sendTimeout = setTimeout(
-    () => sendController.abort(),
-    15000,
-  );
-
-  let sendResponse;
-  try {
-    sendResponse = await fetch(
-      "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${tokenResult.access_token}`,
-          "Content-Type": "application/json",
-        },
-        signal: sendController.signal,
-        body: JSON.stringify({ raw: rawMessage }),
-      },
-    );
-  } finally {
-    clearTimeout(sendTimeout);
-  }
-
-  const sendResult = await sendResponse.json().catch(() => ({}));
-
-  if (!sendResponse.ok) {
+  if (!response.ok) {
     const providerMessage =
-      typeof sendResult.error?.message === "string"
-        ? sendResult.error.message
-        : `HTTP ${sendResponse.status}`;
+      typeof result.message === "string"
+        ? result.message
+        : typeof result.error === "string"
+          ? result.error
+          : `HTTP ${response.status}`;
 
     console.error(
-      "Gmail API staff email failed:",
-      sendResponse.status,
+      "Resend staff email failed:",
+      response.status,
       providerMessage,
     );
 
-    throw new Error(`Gmail rejected the email: ${providerMessage}`);
+    throw new Error(`Resend rejected the email: ${providerMessage}`);
   }
 
-  return sendResult;
+  return result;
 }
 
 
