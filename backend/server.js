@@ -218,7 +218,7 @@ function requireAdmin(req, res, next) {
     .trim()
     .toLowerCase();
 
-  if (role !== "administrator") {
+  if (!["admin", "administrator"].includes(role)) {
     return res.status(403).json({
       code: "ADMIN_REQUIRED",
       message:
