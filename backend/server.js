@@ -2523,36 +2523,22 @@ app.post(
       const name =
         typeof body.name === "string" ? body.name.trim() : "";
 
-      const email =
-        typeof body.email === "string"
-          ? body.email.trim().toLowerCase()
-          : "";
-
       const role =
         typeof body.role === "string" ? body.role.trim() : "";
 
       const initialPassword =
         typeof body.password === "string" ? body.password : "";
 
-      if (!name || !email || !role || !initialPassword) {
+      if (!name || !role || !initialPassword) {
         return res.status(400).json({
           message:
-            "Name, Gmail address, role, and initial password are required.",
+            "Name, role, and initial password are required.",
         });
       }
 
       if (name.length > 120) {
         return res.status(400).json({
           message: "Name must not exceed 120 characters.",
-        });
-      }
-
-      if (
-        email.length > 254 ||
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-      ) {
-        return res.status(400).json({
-          message: "Enter a valid email address.",
         });
       }
 
@@ -2606,14 +2592,13 @@ app.post(
           .insert({
             staff_id: generatedStaffId,
             name,
-            email,
             role,
             password: hashedPassword,
             status: "Active",
             must_change_password: true,
           })
           .select(
-            "id, staff_id, name, email, role, profile_image, status, must_change_password",
+            "id, staff_id, name, role, profile_image, status, must_change_password",
           )
           .single();
 
@@ -2650,8 +2635,7 @@ app.post(
       if (error) {
         if (error.code === "23505") {
           return res.status(409).json({
-            message:
-              "This email address or Staff ID is already in use.",
+            message: "This Staff ID is already in use.",
           });
         }
 

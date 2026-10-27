@@ -32,7 +32,6 @@ const API_URL = (
 
 const emptyForm = {
   name: "",
-  email: "",
   password: "",
   role: "Nurse",
 };
@@ -404,7 +403,6 @@ export default function AdminPanel({ user, onLogout }) {
     setNotice("");
 
     const name = form.name.trim();
-    const gmail = form.gmail.trim().toLowerCase();
     const password = form.password;
     const role = form.role;
 
@@ -415,16 +413,6 @@ export default function AdminPanel({ user, onLogout }) {
 
     if (name.length > 120) {
       setError("Full name must not exceed 120 characters.");
-      return;
-    }
-
-    if (!gmail) {
-      setError("Gmail address is required.");
-      return;
-    }
-
-    if (!/^[^\s@]+@gmail\.com$/i.test(gmail)) {
-      setError("Please enter a valid Gmail address ending in @gmail.com.");
       return;
     }
 
@@ -446,8 +434,6 @@ export default function AdminPanel({ user, onLogout }) {
         headers: getHeaders(),
         body: JSON.stringify({
           name,
-          gmail,
-          email: gmail,
           password,
           role,
         }),
@@ -1731,37 +1717,6 @@ export default function AdminPanel({ user, onLogout }) {
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-green-700 focus:bg-white focus:ring-4 focus:ring-green-100"
                 />
               </div>
-
-                <div>
-                  <label
-                    htmlFor="staffGmail"
-                    className="mb-2 block text-sm font-semibold text-gray-700"
-                  >
-                    Gmail address
-                  </label>
-
-                  <input
-                    id="staffGmail"
-                    name="gmail"
-                    type="email"
-                    required
-                    maxLength={254}
-                    value={form.gmail}
-                    onChange={(event) =>
-                      setForm((previous) => ({
-                        ...previous,
-                        gmail: event.target.value,
-                      }))
-                    }
-                    autoComplete="email"
-                    placeholder="Enter the staff member's Gmail address"
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-green-700 focus:bg-white focus:ring-4 focus:ring-green-100"
-                  />
-
-                  <p className="mt-2 text-xs leading-5 text-gray-500">
-                    Email delivery is disabled. This address is saved with the staff account.
-                  </p>
-                </div>
 
               <div>
                 <label

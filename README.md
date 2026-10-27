@@ -33,6 +33,10 @@ Creating a staff account does not send email. The administrator sets the
 initial password in the Admin Panel and must share it securely with the staff
 member. The account requires a password change at first login.
 
+To allow staff records without an email address, apply
+[`backend/migrations/20261027_staff_email_optional.sql`](./backend/migrations/20261027_staff_email_optional.sql)
+in the Supabase SQL Editor. Existing staff email values are retained.
+
 The public contact form continues to use Resend and requires `RESEND_API_KEY`,
 `EMAIL_FROM`, and `CONTACT_EMAIL`.
 
