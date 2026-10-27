@@ -35,3 +35,16 @@ service. In the backend deployment environment, set `RESEND_API_KEY` and
 `EMAIL_FROM`. `EMAIL_FROM` must use an address on a domain verified with
 Resend. Requests time out after 15 seconds, and provider rejection messages are
 returned to the admin panel.
+
+Resend's testing mode only allows delivery to the email address associated with
+the Resend account. To send staff invitations to other Gmail addresses, verify
+a sending domain in Resend and use a sender address on that domain.
+
+## Reusing deleted staff IDs
+
+Apply
+[`backend/migrations/20261027_reuse_deleted_staff_ids.sql`](./backend/migrations/20261027_reuse_deleted_staff_ids.sql)
+in the Supabase SQL Editor. The staff-ID generator then assigns the lowest
+unused `NUR-###` or `DOC-###` ID, so a deleted ID is reused only when no staff
+account currently has it. Account creation retries ID conflicts caused by
+simultaneous requests.

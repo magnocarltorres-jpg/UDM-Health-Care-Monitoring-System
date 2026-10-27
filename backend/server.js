@@ -2635,7 +2635,7 @@ app.post(
         });
       }
 
-      const {
+      let {
         data: generatedStaffId,
         error: staffIdError,
       } = await supabase.rpc("generate_staff_id", {
@@ -2665,21 +2665,55 @@ app.post(
         12,
       );
 
-      const { data, error } = await supabase
-        .from("staff_accounts")
-        .insert({
-          staff_id: generatedStaffId,
-          name,
-          email,
-          role,
-          password: hashedPassword,
-          status: "Active",
-          must_change_password: true,
-        })
-        .select(
-          "id, staff_id, name, email, role, profile_image, status, must_change_password",
-        )
-        .single();
+      let data;
+      let error;
+
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const insertResult = await supabase
+          .from("staff_accounts")
+          .insert({
+            staff_id: generatedStaffId,
+            name,
+            email,
+            role,
+            password: hashedPassword,
+            status: "Active",
+            must_change_password: true,
+          })
+          .select(
+            "id, staff_id, name, email, role, profile_image, status, must_change_password",
+          )
+          .single();
+
+        data = insertResult.data;
+        error = insertResult.error;
+
+        if (!error || error.code !== "23505" || attempt === 2) {
+          break;
+        }
+
+        const nextStaffId = await supabase.rpc("generate_staff_id", {
+          p_role: role,
+        });
+
+        if (
+          nextStaffId.error ||
+          typeof nextStaffId.data !== "string" ||
+          !/^(NUR|DOC)-\d{3,}$/.test(nextStaffId.data)
+        ) {
+          console.error(
+            "Staff ID regeneration failed:",
+            nextStaffId.error?.message ||
+              "Invalid generated Staff ID.",
+          );
+
+          return res.status(500).json({
+            message: "Unable to generate a unique Staff ID. Please try again.",
+          });
+        }
+
+        generatedStaffId = nextStaffId.data;
+      }
 
       if (error) {
         if (error.code === "23505") {
