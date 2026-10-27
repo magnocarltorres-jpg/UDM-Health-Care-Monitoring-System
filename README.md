@@ -26,3 +26,10 @@ installs the transactional medicine-dispensing functions used by the API. The
 medicine API reads and updates the existing `public.medicines` table, including
 its `brand_name`, `generic_name`, `strength`, `stock_quantity`, and
 `expiration_date` fields.
+
+## Staff account email
+
+Staff account creation sends login details through Gmail SMTP. Configure
+`GMAIL_USER` with the sending Gmail address and `GMAIL_APP_PASSWORD` with an
+App Password generated for that account (not the account's regular password) in
+the backend deployment environment.
