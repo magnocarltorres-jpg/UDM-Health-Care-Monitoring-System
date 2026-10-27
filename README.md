@@ -27,32 +27,14 @@ medicine API reads and updates the existing `public.medicines` table, including
 its `brand_name`, `generic_name`, `strength`, `stock_quantity`, and
 `expiration_date` fields.
 
-## Staff account email
+## Staff account credentials
 
-Staff account invitations are sent through the Gmail API to the recipient
-address entered in the Admin Panel. In Render, configure `GMAIL_USER`,
-`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, and `GMAIL_REFRESH_TOKEN`. The Google
-account must have the Gmail API enabled and grant the
-`https://www.googleapis.com/auth/gmail.send` OAuth scope. Generate the refresh
-token for the same account configured as `GMAIL_USER`. Never commit or share
-these credentials. Requests time out after 15 seconds.
-
-To configure Gmail API access:
-
-1. Create or select a project in Google Cloud Console and enable the Gmail API.
-2. Configure the OAuth consent screen. If the app is in Testing, add the
-   sending Gmail account as a test user.
-3. Create an OAuth client ID and secret.
-4. In OAuth 2.0 Playground, enable **Use your own OAuth credentials**, enter
-   the client ID and secret, authorize the sender with
-   `https://www.googleapis.com/auth/gmail.send`, and exchange the code for a
-   refresh token.
-5. Add all four values as environment variables for the backend service in
-   Render, then redeploy.
+Creating a staff account does not send email. The administrator sets the
+initial password in the Admin Panel and must share it securely with the staff
+member. The account requires a password change at first login.
 
 The public contact form continues to use Resend and requires `RESEND_API_KEY`,
-`EMAIL_FROM`, and `CONTACT_EMAIL`. Resend requires a verified sender domain for
-delivery to recipients other than the Resend account owner.
+`EMAIL_FROM`, and `CONTACT_EMAIL`.
 
 ## Reusing deleted staff IDs
 

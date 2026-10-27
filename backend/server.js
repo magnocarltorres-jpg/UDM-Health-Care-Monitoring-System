@@ -358,149 +358,6 @@ function getTemporaryPassword() {
 }
 
 
-async function sendStaffAccountEmail({
-  email,
-  name,
-  staffId,
-  role,
-  temporaryPassword,
-}) {
-  const requiredEmailVariables = [
-    "GMAIL_USER",
-    "GMAIL_CLIENT_ID",
-    "GMAIL_CLIENT_SECRET",
-    "GMAIL_REFRESH_TOKEN",
-  ];
-  const missingEmailVariables = requiredEmailVariables.filter(
-    (key) => !process.env[key],
-  );
-
-  if (missingEmailVariables.length > 0) {
-    throw new Error(
-      `Gmail API is not configured. Set ${missingEmailVariables.join(", ")} in Render.`,
-    );
-  }
-
-  const tokenController = new AbortController();
-  const tokenTimeout = setTimeout(
-    () => tokenController.abort(),
-    15000,
-  );
-
-  let tokenResponse;
-  try {
-    tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      signal: tokenController.signal,
-      body: new URLSearchParams({
-        client_id: process.env.GMAIL_CLIENT_ID,
-        client_secret: process.env.GMAIL_CLIENT_SECRET,
-        refresh_token: process.env.GMAIL_REFRESH_TOKEN,
-        grant_type: "refresh_token",
-      }),
-    });
-  } finally {
-    clearTimeout(tokenTimeout);
-  }
-
-  const tokenResult = await tokenResponse.json().catch(() => ({}));
-
-  if (!tokenResponse.ok || typeof tokenResult.access_token !== "string") {
-    const description =
-      typeof tokenResult.error_description === "string"
-        ? tokenResult.error_description
-        : typeof tokenResult.error === "string"
-          ? tokenResult.error
-          : `HTTP ${tokenResponse.status}`;
-
-    console.error("Gmail OAuth token request failed:", description);
-    throw new Error(`Gmail authorization failed: ${description}`);
-  }
-
-  const messageText = [
-    `Hello ${name},`,
-    "",
-    "Your UDM CLINIC staff account has been created.",
-    "",
-    "ACCOUNT DETAILS",
-    `Name: ${name}`,
-    `Role: ${role}`,
-    `Staff ID: ${staffId}`,
-    `Temporary Password: ${temporaryPassword}`,
-    "",
-    "Log in using your Staff ID and temporary password.",
-    "You must change your password before accessing the clinic system.",
-    "",
-    "Please keep your account details private.",
-    "",
-    "UDM CLINIC",
-  ].join("\n");
-  const encodedBody = Buffer.from(messageText, "utf8")
-    .toString("base64")
-    .match(/.{1,76}/g)
-    .join("\r\n");
-  const mimeMessage = [
-    `From: UDM CLINIC <${process.env.GMAIL_USER}>`,
-    `To: ${email}`,
-    "Subject: Your UDM CLINIC Staff Account",
-    "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
-    "Content-Transfer-Encoding: base64",
-    "",
-    encodedBody,
-  ].join("\r\n");
-  const rawMessage = Buffer.from(mimeMessage, "utf8")
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
-  const sendController = new AbortController();
-  const sendTimeout = setTimeout(
-    () => sendController.abort(),
-    15000,
-  );
-
-  let sendResponse;
-  try {
-    sendResponse = await fetch(
-      "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${tokenResult.access_token}`,
-          "Content-Type": "application/json",
-        },
-        signal: sendController.signal,
-        body: JSON.stringify({ raw: rawMessage }),
-      },
-    );
-  } finally {
-    clearTimeout(sendTimeout);
-  }
-
-  const sendResult = await sendResponse.json().catch(() => ({}));
-
-  if (!sendResponse.ok) {
-    const providerMessage =
-      typeof sendResult.error?.message === "string"
-        ? sendResult.error.message
-        : `HTTP ${sendResponse.status}`;
-
-    console.error(
-      "Gmail API staff email failed:",
-      sendResponse.status,
-      providerMessage,
-    );
-
-    throw new Error(`Gmail rejected the email: ${providerMessage}`);
-  }
-
-  return sendResult;
-}
-
-
 app.post("/api/auth/login", loginLimiter, async (req, res) => {
   try {
     const body = req.body || {};
@@ -2674,9 +2531,13 @@ app.post(
       const role =
         typeof body.role === "string" ? body.role.trim() : "";
 
-      if (!name || !email || !role) {
+      const initialPassword =
+        typeof body.password === "string" ? body.password : "";
+
+      if (!name || !email || !role || !initialPassword) {
         return res.status(400).json({
-          message: "Name, Gmail address, and role are required.",
+          message:
+            "Name, Gmail address, role, and initial password are required.",
         });
       }
 
@@ -2699,6 +2560,12 @@ app.post(
         return res.status(400).json({
           message:
             "Invalid staff role. Only Nurse and Doctor accounts can be created here.",
+        });
+      }
+
+      if (initialPassword.length < 8) {
+        return res.status(400).json({
+          message: "The initial password must contain at least 8 characters.",
         });
       }
 
@@ -2725,10 +2592,8 @@ app.post(
         });
       }
 
-      const temporaryPassword = getTemporaryPassword();
-
       const hashedPassword = await bcrypt.hash(
-        temporaryPassword,
+        initialPassword,
         12,
       );
 
@@ -2797,34 +2662,9 @@ app.post(
         });
       }
 
-      try {
-        await sendStaffAccountEmail({
-          email,
-          name,
-          staffId: generatedStaffId,
-          role,
-          temporaryPassword,
-        });
-      } catch (emailError) {
-        console.error(
-          "Staff account email failed:",
-          emailError.message,
-        );
-
-        return res.status(201).json({
-          message:
-            emailError.name === "AbortError"
-              ? "The staff account was created, but a Gmail API request timed out after 15 seconds. The account exists; check Render's outbound HTTPS connectivity."
-              : `The staff account was created, but the email could not be sent. ${emailError.message}`,
-          emailSent: false,
-          staff: mapStaffRecord(data),
-        });
-      }
-
       return res.status(201).json({
         message:
-          "Staff account created and login details emailed successfully. The staff member must change the temporary password at first login.",
-        emailSent: true,
+          "Staff account created. Email delivery is disabled; securely share the initial password with the staff member. They must change it at first login.",
         staff: mapStaffRecord(data),
       });
     } catch (error) {

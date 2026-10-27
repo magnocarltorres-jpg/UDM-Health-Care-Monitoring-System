@@ -461,15 +461,9 @@ export default function AdminPanel({ user, onLogout }) {
       setFormOpen(false);
       setForm({ ...emptyForm });
 
-      if (result.emailSent === false) {
-        setNotice(
-          `${result.message || "The account was created, but the email could not be sent. Check your Render logs before trying again."}${generatedStaffId ? ` Staff ID: ${generatedStaffId}` : ""}`,
-        );
-      } else {
-        setNotice(
-          `${result.message || "Staff account created successfully."}${generatedStaffId ? ` Generated Staff ID: ${generatedStaffId}` : ""} Check that the staff member receives the email.`,
-        );
-      }
+      setNotice(
+        `${result.message || "Staff account created successfully."}${generatedStaffId ? ` Staff ID: ${generatedStaffId}.` : ""}`,
+      );
 
       await loadStaff();
     } catch (err) {
@@ -1765,7 +1759,7 @@ export default function AdminPanel({ user, onLogout }) {
                   />
 
                   <p className="mt-2 text-xs leading-5 text-gray-500">
-                    The staff member's email address will be used to send their login details.
+                    Email delivery is disabled. This address is saved with the staff account.
                   </p>
                 </div>
 
@@ -1818,7 +1812,7 @@ export default function AdminPanel({ user, onLogout }) {
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-green-700 focus:bg-white focus:ring-4 focus:ring-green-100"
                 />
                 <p className="mt-2 text-xs leading-5 text-gray-500">
-                  Use an initial password that can be communicated securely to the staff member.
+                  Share this initial password securely with the staff member. They must change it at first login.
                 </p>
               </div>
 
