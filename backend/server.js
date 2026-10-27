@@ -4,7 +4,6 @@ import cors from "cors";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
@@ -366,41 +365,60 @@ async function sendStaffAccountEmail({
   role,
   temporaryPassword,
 }) {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    throw new Error("Gmail email environment variables are missing.");
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+    throw new Error("Resend email environment variables are missing.");
   }
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
-  return transporter.sendMail({
-    from: `"UDM CLINIC" <${process.env.GMAIL_USER}>`,
-    to: email,
-    subject: "Your UDM CLINIC Staff Account",
-    text: [
-      `Hello ${name},`,
-      "",
-      "Your UDM CLINIC staff account has been created.",
-      "",
-      "ACCOUNT DETAILS",
-      `Name: ${name}`,
-      `Role: ${role}`,
-      `Staff ID: ${staffId}`,
-      `Temporary Password: ${temporaryPassword}`,
-      "",
-      "Log in using your Staff ID and temporary password.",
-      "You must change your password before accessing the clinic system.",
-      "",
-      "Please keep your account details private.",
-      "",
-      "UDM CLINIC",
-    ].join("\n"),
-  });
+  let response;
+
+  try {
+    response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM,
+        to: [email],
+        subject: "Your UDM CLINIC Staff Account",
+        text: [
+          `Hello ${name},`,
+          "",
+          "Your UDM CLINIC staff account has been created.",
+          "",
+          "ACCOUNT DETAILS",
+          `Name: ${name}`,
+          `Role: ${role}`,
+          `Staff ID: ${staffId}`,
+          `Temporary Password: ${temporaryPassword}`,
+          "",
+          "Log in using your Staff ID and temporary password.",
+          "You must change your password before accessing the clinic system.",
+          "",
+          "Please keep your account details private.",
+          "",
+          "UDM CLINIC",
+        ].join("\n"),
+      }),
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!response.ok) {
+    const errorDetails = await response.text();
+
+    console.error("Resend staff email failed:", errorDetails);
+
+    throw new Error(`Email provider rejected the request (${response.status}).`);
+  }
+
+  return response.json();
 }
 
 
@@ -2605,14 +2623,11 @@ app.post(
         });
       }
 
-      if (
-        !process.env.GMAIL_USER ||
-        !process.env.GMAIL_APP_PASSWORD
-      ) {
-        console.error("Gmail environment variables are missing.");
+      if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+        console.error("Resend email environment variables are missing.");
 
         return res.status(500).json({
-          message: "Gmail is not configured on the server.",
+          message: "Staff email is not configured on the server.",
         });
       }
 
@@ -2693,7 +2708,9 @@ app.post(
 
         return res.status(201).json({
           message:
-            "The staff account was created, but the email could not be sent. The account exists; use the Admin Panel to reset the password and arrange secure delivery.",
+            emailError.name === "AbortError"
+              ? "The staff account was created, but the email provider timed out after 15 seconds. The account exists; check the email provider configuration and arrange secure delivery."
+              : "The staff account was created, but the email could not be sent. The account exists; check the email provider configuration and arrange secure delivery.",
           emailSent: false,
           staff: mapStaffRecord(data),
         });

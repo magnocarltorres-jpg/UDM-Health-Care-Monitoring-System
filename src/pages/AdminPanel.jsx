@@ -463,7 +463,7 @@ export default function AdminPanel({ user, onLogout }) {
 
       if (result.emailSent === false) {
         setNotice(
-          `The account was created, but the email could not be sent. Check your Render logs before trying again.${generatedStaffId ? ` Staff ID: ${generatedStaffId}` : ""}`,
+          `${result.message || "The account was created, but the email could not be sent. Check your Render logs before trying again."}${generatedStaffId ? ` Staff ID: ${generatedStaffId}` : ""}`,
         );
       } else {
         setNotice(
