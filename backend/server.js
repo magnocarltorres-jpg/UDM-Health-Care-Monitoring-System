@@ -4,7 +4,6 @@ import cors from "cors";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
@@ -366,50 +365,72 @@ async function sendStaffAccountEmail({
   role,
   temporaryPassword,
 }) {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    throw new Error("Gmail email environment variables are missing.");
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+    throw new Error(
+      "Resend is not configured. Set RESEND_API_KEY and EMAIL_FROM in Render.",
+    );
   }
 
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
+  let response;
   try {
-    return await transporter.sendMail({
-      from: `"UDM CLINIC" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: "Your UDM CLINIC Staff Account",
-      text: [
-        `Hello ${name},`,
-        "",
-        "Your UDM CLINIC staff account has been created.",
-        "",
-        "ACCOUNT DETAILS",
-        `Name: ${name}`,
-        `Role: ${role}`,
-        `Staff ID: ${staffId}`,
-        `Temporary Password: ${temporaryPassword}`,
-        "",
-        "Log in using your Staff ID and temporary password.",
-        "You must change your password before accessing the clinic system.",
-        "",
-        "Please keep your account details private.",
-        "",
-        "UDM CLINIC",
-      ].join("\n"),
+    response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM,
+        to: [email],
+        subject: "Your UDM CLINIC Staff Account",
+        text: [
+          `Hello ${name},`,
+          "",
+          "Your UDM CLINIC staff account has been created.",
+          "",
+          "ACCOUNT DETAILS",
+          `Name: ${name}`,
+          `Role: ${role}`,
+          `Staff ID: ${staffId}`,
+          `Temporary Password: ${temporaryPassword}`,
+          "",
+          "Log in using your Staff ID and temporary password.",
+          "You must change your password before accessing the clinic system.",
+          "",
+          "Please keep your account details private.",
+          "",
+          "UDM CLINIC",
+        ].join("\n"),
+      }),
     });
   } finally {
-    transporter.close();
+    clearTimeout(timeout);
   }
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const providerMessage =
+      typeof result.message === "string"
+        ? result.message
+        : typeof result.error === "string"
+          ? result.error
+          : `HTTP ${response.status}`;
+
+    console.error(
+      "Resend staff email failed:",
+      response.status,
+      providerMessage,
+    );
+
+    throw new Error(`Resend rejected the email: ${providerMessage}`);
+  }
+
+  return result;
 }
 
 
@@ -2614,12 +2635,12 @@ app.post(
         });
       }
 
-      if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-        console.error("Gmail email environment variables are missing.");
+      if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+        console.error("Resend email environment variables are missing.");
 
         return res.status(500).json({
           message:
-            "Gmail is not configured on the server. Set GMAIL_USER and GMAIL_APP_PASSWORD in Render.",
+            "Resend is not configured on the server. Set RESEND_API_KEY and EMAIL_FROM in Render.",
         });
       }
 
@@ -2700,10 +2721,9 @@ app.post(
 
         return res.status(201).json({
           message:
-            emailError.code === "ETIMEDOUT" ||
-            emailError.code === "ESOCKET"
-              ? "The staff account was created, but Gmail SMTP timed out. Check Render's SMTP connectivity and the Gmail settings; the account exists."
-              : "The staff account was created, but Gmail could not send the email. Check the Gmail App Password and Render logs; the account exists.",
+            emailError.name === "AbortError"
+              ? "The staff account was created, but the email provider timed out after 15 seconds. The account exists; check Render's outbound HTTPS connectivity."
+              : `The staff account was created, but the email could not be sent. ${emailError.message}`,
           emailSent: false,
           staff: mapStaffRecord(data),
         });
