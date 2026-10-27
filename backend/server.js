@@ -2635,15 +2635,6 @@ app.post(
         });
       }
 
-      if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
-        console.error("Resend email environment variables are missing.");
-
-        return res.status(500).json({
-          message:
-            "Resend is not configured on the server. Set RESEND_API_KEY and EMAIL_FROM in Render.",
-        });
-      }
-
       const {
         data: generatedStaffId,
         error: staffIdError,
