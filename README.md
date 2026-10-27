@@ -29,8 +29,9 @@ its `brand_name`, `generic_name`, `strength`, `stock_quantity`, and
 
 ## Staff account email
 
-Staff account creation sends login details through the Resend email API. In the
-backend deployment environment, configure `RESEND_API_KEY` and `EMAIL_FROM`.
-`EMAIL_FROM` must use a sender address on a domain verified with Resend. The
-recipient can be a Gmail address. Email API requests time out after 15 seconds
-so account creation does not remain stuck waiting for the provider.
+Staff account creation sends login details through Gmail SMTP. In the backend
+deployment environment, set `GMAIL_USER` to the sending Gmail address and
+`GMAIL_APP_PASSWORD` to an App Password generated for that account (not its
+regular password). The Gmail account must have 2-Step Verification enabled.
+SMTP connection and response waits are limited so account creation cannot stay
+loading indefinitely if Gmail is unreachable.
