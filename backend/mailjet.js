@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { readFile } from "node:fs/promises";
 import { env } from "node:process";
 
 const MAILJET_SEND_URL = "https://api.mailjet.com/v3.1/send";
@@ -7,9 +8,13 @@ const requiredEnvironmentVariables = [
   "MAILJET_API_KEY",
   "MAILJET_SECRET_KEY",
   "MAILJET_SENDER_EMAIL",
-  "MAILJET_ACCOUNT_CREATED_TEMPLATE_ID",
   "APP_LOGIN_URL",
 ];
+
+const accountCreatedTemplateUrl = new URL(
+  "./email-templates/account-created.html",
+  import.meta.url,
+);
 
 function getRequiredEnvironmentVariable(name) {
   const value = env[name]?.trim();
@@ -74,13 +79,26 @@ export async function sendAccountCreatedEmail({
   const apiKey = getRequiredEnvironmentVariable("MAILJET_API_KEY");
   const apiSecret = getRequiredEnvironmentVariable("MAILJET_SECRET_KEY");
   const senderEmail = getRequiredEnvironmentVariable("MAILJET_SENDER_EMAIL");
-  const templateId = Number(
-    getRequiredEnvironmentVariable("MAILJET_ACCOUNT_CREATED_TEMPLATE_ID"),
-  );
+  const loginUrl = getLoginUrl();
+  const fullName = name.trim();
+  const template = await readFile(accountCreatedTemplateUrl, "utf8");
+  const variables = {
+    fullName,
+    loginUrl,
+    staffId,
+    role,
+    temporaryPassword,
+  };
+  const html = template.replace(
+    /\{\{var:([A-Za-z0-9_]+)\}\}/g,
+    (placeholder, key) => {
+      if (!Object.hasOwn(variables, key)) {
+        throw new Error(`Unknown account email template variable: ${key}`);
+      }
 
-  if (!Number.isSafeInteger(templateId) || templateId <= 0) {
-    throw new Error("MAILJET_ACCOUNT_CREATED_TEMPLATE_ID must be a positive integer.");
-  }
+      return escapeHtml(variables[key]);
+    },
+  );
 
   const payload = {
     Messages: [
@@ -92,19 +110,23 @@ export async function sendAccountCreatedEmail({
         To: [
           {
             Email: to.trim(),
-            Name: name.trim(),
+            Name: fullName,
           },
         ],
-        TemplateID: templateId,
-        TemplateLanguage: true,
         Subject: "Your UDM CLINIC Staff Account",
-        Variables: {
-          fullName: escapeHtml(name.trim()),
-          loginUrl: escapeHtml(getLoginUrl()),
-          staffId: escapeHtml(staffId),
-          role: escapeHtml(role),
-          temporaryPassword: escapeHtml(temporaryPassword),
-        },
+        TextPart: [
+          `Hello ${fullName},`,
+          "",
+          "Your UDM CLINIC staff account has been created.",
+          "",
+          `Role: ${role}`,
+          `Staff ID: ${staffId}`,
+          `Temporary Password: ${temporaryPassword}`,
+          "",
+          `Log in at: ${loginUrl}`,
+          "You must change your password before accessing the clinic system.",
+        ].join("\n"),
+        HTMLPart: html,
       },
     ],
   };

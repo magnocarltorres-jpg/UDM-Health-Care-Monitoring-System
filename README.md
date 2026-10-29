@@ -30,25 +30,22 @@ its `brand_name`, `generic_name`, `strength`, `stock_quantity`, and
 ## Staff account credentials
 
 Creating a staff account stores the staff member's email address and sends an
-account notification using Mailjet. The email contains a sign-in link and Staff
-ID, but never includes the initial password. The administrator must share that
-password securely; staff must change it at first login.
+account notification using Mailjet. The email contains a sign-in link, Staff ID,
+and initial password. Staff must change the password at first login.
 
 To allow staff records without an email address, apply
 [`backend/migrations/20261027_staff_email_optional.sql`](./backend/migrations/20261027_staff_email_optional.sql)
 in the Supabase SQL Editor. Existing staff email values are retained.
 
-Create an account-creation template in Mailjet using
-[`backend/email-templates/account-created.html`](./backend/email-templates/account-created.html)
-and enable template variables. Set these backend environment variables in
-`backend/.env` for local development and in the backend hosting environment
-before deployment:
+The account-creation email uses the local HTML template at
+[`backend/email-templates/account-created.html`](./backend/email-templates/account-created.html).
+No Mailjet template ID is needed. Set these backend environment variables in
+`backend/.env` for local development and in the backend hosting environment:
 
 - `MAILJET_API_KEY`
 - `MAILJET_SECRET_KEY`
 - `MAILJET_SENDER_EMAIL` (a verified Mailjet sender)
 - `MAILJET_SENDER_NAME` (optional; defaults to `UDM Health`)
-- `MAILJET_ACCOUNT_CREATED_TEMPLATE_ID`
 - `APP_LOGIN_URL` (the HTTPS URL of the application login page)
 
 To send a test email to the configured sender address, run
