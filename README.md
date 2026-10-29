@@ -61,11 +61,12 @@ The administrator must then share the initial password securely.
 The public contact form continues to use Resend and requires `RESEND_API_KEY`,
 `EMAIL_FROM`, and `CONTACT_EMAIL`.
 
-## Reusing deleted staff IDs
+## Sequential staff IDs
 
 Apply
-[`backend/migrations/20261027_reuse_deleted_staff_ids.sql`](./backend/migrations/20261027_reuse_deleted_staff_ids.sql)
-in the Supabase SQL Editor. The staff-ID generator then assigns the lowest
-unused `NUR-###` or `DOC-###` ID, so a deleted ID is reused only when no staff
-account currently has it. Account creation retries ID conflicts caused by
-simultaneous requests.
+[`backend/migrations/20261029_sequential_staff_ids.sql`](./backend/migrations/20261029_sequential_staff_ids.sql)
+in the Supabase SQL Editor before deploying the backend update. New staff
+accounts receive one shared sequential ID (`StaffID-001`, `StaffID-002`, and so
+on) across Nurse and Doctor roles. The database sequence is initialized from
+the highest existing `StaffID-###` value and prevents IDs from being reused
+after a staff account is deleted.

@@ -2581,7 +2581,7 @@ app.post(
       if (
         staffIdError ||
         typeof generatedStaffId !== "string" ||
-        !/^(NUR|DOC)-\d{3,}$/.test(generatedStaffId)
+        !/^StaffID-\d{3,}$/.test(generatedStaffId)
       ) {
         console.error(
           "Staff ID generation failed:",
@@ -2622,7 +2622,18 @@ app.post(
         data = insertResult.data;
         error = insertResult.error;
 
-        if (!error || error.code !== "23505" || attempt === 2) {
+        const conflictDetails = [
+          error?.details,
+          error?.message,
+          error?.constraint,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        const isStaffIdConflict =
+          error?.code === "23505" && conflictDetails.includes("staff_id");
+
+        if (!isStaffIdConflict || attempt === 2) {
           break;
         }
 
@@ -2633,7 +2644,7 @@ app.post(
         if (
           nextStaffId.error ||
           typeof nextStaffId.data !== "string" ||
-          !/^(NUR|DOC)-\d{3,}$/.test(nextStaffId.data)
+          !/^StaffID-\d{3,}$/.test(nextStaffId.data)
         ) {
           console.error(
             "Staff ID regeneration failed:",
@@ -2651,8 +2662,21 @@ app.post(
 
       if (error) {
         if (error.code === "23505") {
+          const conflictDetails = [
+            error.details,
+            error.message,
+            error.constraint,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
           return res.status(409).json({
-            message: "This Staff ID is already in use.",
+            message: conflictDetails.includes("staff_id")
+              ? "Unable to assign a unique Staff ID. Please try again."
+              : conflictDetails.includes("email")
+                ? "A staff account already uses this email address."
+                : "A staff account with these details already exists.",
           });
         }
 
