@@ -59,11 +59,16 @@ function getLoginUrl() {
 export async function sendAccountCreatedEmail({
   to,
   name,
+  temporaryPassword,
   staffId,
   role,
 }) {
   if (typeof to !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim())) {
     throw new Error("A valid recipient email address is required.");
+  }
+
+  if (typeof temporaryPassword !== "string" || temporaryPassword.length < 8) {
+    throw new Error("A valid temporary password is required.");
   }
 
   const apiKey = getRequiredEnvironmentVariable("MAILJET_API_KEY");
@@ -77,13 +82,12 @@ export async function sendAccountCreatedEmail({
     throw new Error("MAILJET_ACCOUNT_CREATED_TEMPLATE_ID must be a positive integer.");
   }
 
-  const firstName = name.trim().split(/\s+/)[0];
   const payload = {
     Messages: [
       {
         From: {
           Email: senderEmail,
-          Name: env.MAILJET_SENDER_NAME?.trim() || "UDM Health",
+          Name: env.MAILJET_SENDER_NAME?.trim() || "UDM CLINIC",
         },
         To: [
           {
@@ -93,12 +97,13 @@ export async function sendAccountCreatedEmail({
         ],
         TemplateID: templateId,
         TemplateLanguage: true,
-        Subject: "Your UDM Health account is ready",
+        Subject: "Your UDM CLINIC Staff Account",
         Variables: {
-          firstname: escapeHtml(firstName),
+          fullName: escapeHtml(name.trim()),
           loginUrl: escapeHtml(getLoginUrl()),
           staffId: escapeHtml(staffId),
           role: escapeHtml(role),
+          temporaryPassword: escapeHtml(temporaryPassword),
         },
       },
     ],

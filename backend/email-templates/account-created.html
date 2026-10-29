@@ -3,23 +3,32 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Your UDM Health account is ready</title>
+    <title>Your UDM CLINIC Staff Account</title>
   </head>
   <body style="margin:0;padding:24px;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#202124;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;">
       <div style="padding:28px 32px;background:#176b59;color:#ffffff;">
-        <h1 style="margin:0;font-size:24px;">Your account is ready</h1>
+        <h1 style="margin:0;font-size:24px;">UDM CLINIC Staff Account</h1>
       </div>
       <div style="padding:32px;">
-        <p style="margin:0 0 16px;">Hello {{var:firstname}},</p>
+        <p style="margin:0 0 16px;">Hello {{var:fullName}},</p>
+        <p style="margin:0 0 20px;line-height:1.6;">
+          Your UDM CLINIC staff account has been created.
+        </p>
+        <div style="margin:0 0 24px;padding:18px 20px;background:#f4f6f8;border-radius:6px;">
+          <p style="margin:0 0 10px;font-weight:bold;">ACCOUNT DETAILS</p>
+          <p style="margin:0 0 8px;">Name: {{var:fullName}}</p>
+          <p style="margin:0 0 8px;">Role: {{var:role}}</p>
+          <p style="margin:0 0 8px;">Staff ID: <strong>{{var:staffId}}</strong></p>
+          <p style="margin:0;">Temporary Password: <strong>{{var:temporaryPassword}}</strong></p>
+        </div>
         <p style="margin:0 0 24px;line-height:1.6;">
-          An account has been created for you as a {{var:role}}. Your Staff ID is
-          <strong>{{var:staffId}}</strong>. Sign in using the button below. You
-          must change your initial password the first time you log in.
+          You must change your password before accessing the clinic system.
+          Please keep your account details private.
         </p>
         <p style="margin:0 0 28px;">
           <a href="{{var:loginUrl}}" style="display:inline-block;padding:13px 22px;background:#176b59;color:#ffffff;text-decoration:none;border-radius:5px;font-weight:bold;">
-            Sign in to your account
+            Log in to the clinic system
           </a>
         </p>
         <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#5f6368;">
@@ -30,9 +39,9 @@
         </p>
         <hr style="margin:28px 0;border:0;border-top:1px solid #e8eaed;">
         <p style="margin:0;font-size:12px;line-height:1.5;color:#5f6368;">
-          For your security, never share your password by email. If you were not
-          expecting this account, contact your system administrator.
+          If you were not expecting this account, contact your system administrator.
         </p>
+        <p style="margin:24px 0 0;font-size:12px;font-weight:bold;color:#176b59;">UDM CLINIC</p>
       </div>
     </div>
   </body>

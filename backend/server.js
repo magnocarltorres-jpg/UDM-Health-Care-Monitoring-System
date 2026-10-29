@@ -2700,6 +2700,7 @@ app.post(
           await sendAccountCreatedEmail({
             to: email,
             name,
+            temporaryPassword: initialPassword,
             staffId: data.staff_id,
             role,
           });

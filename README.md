@@ -56,7 +56,10 @@ To send a test email to the configured sender address, run
 
 If these values are missing or Mailjet rejects a send, the staff account is
 still created and the API response reports that the notification was not sent.
-The administrator must then share the initial password securely.
+The account-created email includes the initial password and requires the staff
+member to change it at first login. Because email is not a secure channel,
+administrators should use a unique temporary password and tell the recipient
+to change it immediately.
 
 The public contact form continues to use Resend and requires `RESEND_API_KEY`,
 `EMAIL_FROM`, and `CONTACT_EMAIL`.
