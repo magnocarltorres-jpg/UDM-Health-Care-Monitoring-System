@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Your UDM Health account is ready</title>
+  </head>
+  <body style="margin:0;padding:24px;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#202124;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;">
+      <div style="padding:28px 32px;background:#176b59;color:#ffffff;">
+        <h1 style="margin:0;font-size:24px;">Your account is ready</h1>
+      </div>
+      <div style="padding:32px;">
+        <p style="margin:0 0 16px;">Hello {{var:firstname}},</p>
+        <p style="margin:0 0 24px;line-height:1.6;">
+          An account has been created for you as a {{var:role}}. Your Staff ID is
+          <strong>{{var:staffId}}</strong>. Sign in using the button below. You
+          must change your initial password the first time you log in.
+        </p>
+        <p style="margin:0 0 28px;">
+          <a href="{{var:loginUrl}}" style="display:inline-block;padding:13px 22px;background:#176b59;color:#ffffff;text-decoration:none;border-radius:5px;font-weight:bold;">
+            Sign in to your account
+          </a>
+        </p>
+        <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#5f6368;">
+          If the button does not work, copy and paste this address into your browser:
+        </p>
+        <p style="margin:0;font-size:13px;line-height:1.5;word-break:break-all;">
+          <a href="{{var:loginUrl}}" style="color:#176b59;">{{var:loginUrl}}</a>
+        </p>
+        <hr style="margin:28px 0;border:0;border-top:1px solid #e8eaed;">
+        <p style="margin:0;font-size:12px;line-height:1.5;color:#5f6368;">
+          For your security, never share your password by email. If you were not
+          expecting this account, contact your system administrator.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

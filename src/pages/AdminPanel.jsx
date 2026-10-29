@@ -45,7 +45,7 @@ const API_URL = (
 const PAGE_SIZE = 8;
 const NOTICE_TIMEOUT_MS = 6000;
 
-const emptyForm = { name: "", password: "", role: "Nurse" };
+const emptyForm = { name: "", email: "", password: "", role: "Nurse" };
 
 async function api(path, { method = "GET", body } = {}) {
   const token = localStorage.getItem("udm_auth_token");
@@ -646,10 +646,14 @@ export default function AdminPanel({ user, onLogout }) {
     clearMessages();
 
     const name = form.name.trim();
+    const email = form.email.trim();
     const { password, role } = form;
 
     if (!name) return setError("Full name is required.");
     if (name.length > 120) return setError("Full name must not exceed 120 characters.");
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return setError("Please enter a valid email address.");
+    }
     if (!["Nurse", "Doctor"].includes(role)) return setError("Please select a valid staff role.");
     if (password.length < 8) return setError("The password must contain at least 8 characters.");
 
@@ -657,7 +661,7 @@ export default function AdminPanel({ user, onLogout }) {
     try {
       const result = await call("/api/admin/staff", {
         method: "POST",
-        body: { name, password, role },
+        body: { name, email, password, role },
       });
 
       const generatedStaffId = result.staff?.staffId ?? result.staff?.staff_id ?? "";
@@ -1968,6 +1972,24 @@ export default function AdminPanel({ user, onLogout }) {
                 onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
                 autoComplete="name"
                 placeholder="Enter the complete name"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-green-700 focus:bg-white focus:ring-4 focus:ring-green-100"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="staffEmail" className="mb-2 block text-sm font-semibold text-gray-700">
+                Email address
+              </label>
+              <input
+                id="staffEmail"
+                name="email"
+                type="email"
+                required
+                maxLength={254}
+                value={form.email}
+                onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+                autoComplete="email"
+                placeholder="name@example.com"
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-green-700 focus:bg-white focus:ring-4 focus:ring-green-100"
               />
             </div>

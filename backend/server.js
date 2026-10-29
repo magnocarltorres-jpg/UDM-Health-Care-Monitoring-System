@@ -9,6 +9,10 @@ import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { rateLimit } from "express-rate-limit";
+import {
+  getMissingMailjetConfiguration,
+  sendAccountCreatedEmail,
+} from "./mailjet.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -2526,13 +2530,25 @@ app.post(
       const role =
         typeof body.role === "string" ? body.role.trim() : "";
 
+      const email =
+        typeof body.email === "string" ? body.email.trim() : "";
+
       const initialPassword =
         typeof body.password === "string" ? body.password : "";
 
-      if (!name || !role || !initialPassword) {
+      if (!name || !email || !role || !initialPassword) {
         return res.status(400).json({
           message:
-            "Name, role, and initial password are required.",
+            "Name, email, role, and initial password are required.",
+        });
+      }
+
+      if (
+        email.length > 254 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      ) {
+        return res.status(400).json({
+          message: "Please enter a valid email address.",
         });
       }
 
@@ -2592,6 +2608,7 @@ app.post(
           .insert({
             staff_id: generatedStaffId,
             name,
+            email,
             role,
             password: hashedPassword,
             status: "Active",
@@ -2646,9 +2663,36 @@ app.post(
         });
       }
 
+      let emailSent = false;
+      const missingMailjetConfiguration = getMissingMailjetConfiguration();
+
+      if (missingMailjetConfiguration.length > 0) {
+        console.error(
+          "Account notification email was not sent. Missing Mailjet configuration:",
+          missingMailjetConfiguration.join(", "),
+        );
+      } else {
+        try {
+          await sendAccountCreatedEmail({
+            to: email,
+            name,
+            staffId: data.staff_id,
+            role,
+          });
+          emailSent = true;
+        } catch (mailError) {
+          console.error(
+            "Account created, but Mailjet notification failed:",
+            mailError.message,
+          );
+        }
+      }
+
       return res.status(201).json({
-        message:
-          "Staff account created. Email delivery is disabled; securely share the initial password with the staff member. They must change it at first login.",
+        message: emailSent
+          ? "Staff account created and notification email sent. They must change their initial password at first login."
+          : "Staff account created, but the notification email was not sent. Securely share the initial password with the staff member, who must change it at first login.",
+        emailSent,
         staff: mapStaffRecord(data),
       });
     } catch (error) {
