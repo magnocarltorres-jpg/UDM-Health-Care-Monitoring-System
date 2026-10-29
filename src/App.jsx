@@ -80,6 +80,8 @@ function App() {
     localStorage.removeItem("udm_auth_token");
     localStorage.removeItem("udm_clinic_history");
 
+    if (!localStorage.getItem("udm_authenticated")) return undefined;
+
     let cancelled = false;
 
     async function restoreSession() {
