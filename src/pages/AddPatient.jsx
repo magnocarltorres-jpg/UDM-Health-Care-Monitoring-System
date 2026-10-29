@@ -1,4 +1,3 @@
-import { apiFetch } from "../utils/api";
 
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
@@ -38,14 +37,14 @@ function AddPatient({
       setCoursesError("");
 
       try {
-        const token = localStorage.getItem("udm_authenticated");
+        const token = localStorage.getItem("udm_auth_token");
 
         if (!token) {
           throw new Error("Your session has expired. Please log in again.");
         }
 
-        const response = await apiFetch(`${API_URL}/api/courses`, {
-          headers: {},
+        const response = await fetch(`${API_URL}/api/courses`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
         const result = await response.json().catch(() => ({}));
 
@@ -75,7 +74,7 @@ function AddPatient({
     event.preventDefault();
     setErrorMessage("");
 
-    const token = localStorage.getItem("udm_authenticated");
+    const token = localStorage.getItem("udm_auth_token");
 
     if (!token) {
       setErrorMessage("Your session has expired. Please log in again.");
@@ -85,10 +84,11 @@ function AddPatient({
     setSaving(true);
 
     try {
-      const response = await apiFetch(`${API_URL}/api/patients`, {
+      const response = await fetch(`${API_URL}/api/patients`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
     body: JSON.stringify({
   studentNumber: studentNumber.trim(),

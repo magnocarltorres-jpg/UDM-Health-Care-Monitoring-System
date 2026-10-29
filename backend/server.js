@@ -24,26 +24,6 @@ dotenv.config({
 const app = express();
 
 app.set("trust proxy", 1);
-app.disable("x-powered-by");
-
-app.use((_req, res, next) => {
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader(
-    "Permissions-Policy",
-    "camera=(self), microphone=(), geolocation=()",
-  );
-
-  if (process.env.NODE_ENV === "production") {
-    res.setHeader(
-      "Strict-Transport-Security",
-      "max-age=31536000; includeSubDomains",
-    );
-  }
-
-  next();
-});
 
 const PORT = Number(process.env.PORT) || 5000;
 
@@ -91,22 +71,13 @@ const supabase = createClient(
 const nursePhotoBucket = "nurse-profiles";
 
 
-const allowedOrigins = [
-  ...(process.env.CORS_ORIGINS || "").split(","),
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "https://magnocarltorres-jpg.github.io",
-]
+const allowedOrigins = (
+  process.env.CORS_ORIGINS ||
+  "http://localhost:5173,http://127.0.0.1:5173"
+)
+  .split(",")
   .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
-
-const sessionCookieOptions = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  path: "/",
-  maxAge: 8 * 60 * 60 * 1000,
-};
 
 app.use(
   cors({
@@ -118,34 +89,16 @@ app.use(
       console.error("CORS blocked origin:", origin);
       return callback(new Error("Origin not allowed by CORS."));
     },
-    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Content-Type",
+      "Authorization",
       "Cache-Control",
       "Pragma",
-      "X-Requested-With",
     ],
     optionsSuccessStatus: 204,
   }),
 );
-
-app.use((req, res, next) => {
-  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
-    return next();
-  }
-
-  const origin = req.get("Origin");
-  if (!origin || !allowedOrigins.includes(origin.replace(/\/+$/, ""))) {
-    return res.status(403).json({ message: "Request origin is not allowed." });
-  }
-
-  if (req.get("X-Requested-With") !== "XMLHttpRequest") {
-    return res.status(403).json({ message: "Request validation failed." });
-  }
-
-  return next();
-});
 
 app.use(express.json({ limit: "1mb" }));
 
@@ -177,124 +130,10 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-app.get(
-  "/api/reports",
-  authenticateToken,
-  requireActiveStaff,
-  requireClinicStaffOrAdmin,
-  async (req, res) => {
-    const dateParts = Object.fromEntries(
-      new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Manila",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      })
-        .formatToParts(new Date())
-        .map(({ type, value }) => [type, value]),
-    );
-    const today = `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
-    const defaultFrom = new Date(`${today}T00:00:00.000Z`);
-    defaultFrom.setUTCDate(defaultFrom.getUTCDate() - 29);
-    const from = req.query.from || defaultFrom.toISOString().slice(0, 10);
-    const to = req.query.to || today;
-
-    if (
-      !isValidDateOnly(from) ||
-      !isValidDateOnly(to) ||
-      to < from ||
-      new Date(`${to}T00:00:00.000Z`) -
-        new Date(`${from}T00:00:00.000Z`) >
-        365 * 24 * 60 * 60 * 1000
-    ) {
-      return res.status(400).json({
-        message: "Choose a valid report date range of up to 366 days.",
-      });
-    }
-
-    try {
-      const { data, error } = await supabase.rpc("get_clinic_report", {
-        p_from: from,
-        p_to: to,
-      });
-
-      if (error) {
-        console.error("Clinic report lookup failed:", error.message);
-        return res.status(500).json({ message: "Unable to load clinic reports." });
-      }
-
-      return res.json({ from, to, ...data });
-    } catch (error) {
-      console.error("Clinic report lookup failed:", error.message);
-      return res.status(500).json({ message: "Unable to load clinic reports." });
-    }
-  },
-);
-
-app.get(
-  "/api/audit-logs",
-  authenticateToken,
-  requireActiveStaff,
-  requireClinicStaffOrAdmin,
-  async (req, res) => {
-    const { from, to } = req.query;
-
-    if (
-      (from && !isValidDateOnly(from)) ||
-      (to && !isValidDateOnly(to)) ||
-      (from && to && to < from)
-    ) {
-      return res.status(400).json({ message: "Choose a valid audit date range." });
-    }
-
-    try {
-      let query = supabase
-        .from("audit_logs")
-        .select(
-          "id, actor_id, action, entity_type, entity_id, changed_fields, created_at, staff_accounts (name, staff_id)",
-        )
-        .order("created_at", { ascending: false })
-        .limit(200);
-
-      if (from) {
-        query = query.gte(
-          "created_at",
-          `${from}T00:00:00+08:00`,
-        );
-      }
-
-      if (to) {
-        const nextDay = new Date(`${to}T00:00:00.000Z`);
-        nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-        query = query.lt(
-          "created_at",
-          `${nextDay.toISOString().slice(0, 10)}T00:00:00+08:00`,
-        );
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("Audit log lookup failed:", error.message);
-        return res.status(500).json({ message: "Unable to load activity history." });
-      }
-
-      return res.json({ events: data || [] });
-    } catch (error) {
-      console.error("Audit log lookup failed:", error.message);
-      return res.status(500).json({ message: "Unable to load activity history." });
-    }
-  },
-);
-
 function authenticateToken(req, res, next) {
-  const sessionCookie = req.headers.cookie
-    ?.split(";")
-    .map((cookie) => cookie.trim())
-    .find((cookie) => cookie.startsWith("udm_session="));
-  const token = sessionCookie?.slice("udm_session=".length);
+  const authorization = req.headers.authorization;
 
-  if (!token) {
+  if (!authorization?.startsWith("Bearer ")) {
     return res.status(401).json({
       message: "Authentication required.",
     });
@@ -302,7 +141,7 @@ function authenticateToken(req, res, next) {
 
   try {
     req.user = jwt.verify(
-      token,
+      authorization.slice("Bearer ".length),
       process.env.JWT_SECRET,
     );
 
@@ -418,66 +257,6 @@ function requireClinicStaff(req, res, next) {
   }
 
   return next();
-}
-
-function requireClinicStaffOrAdmin(req, res, next) {
-  if (req.staff?.must_change_password === true) {
-    return res.status(403).json({
-      code: "PASSWORD_CHANGE_REQUIRED",
-      message:
-        "You must change your temporary password before accessing the clinic system.",
-    });
-  }
-
-  const role = String(req.staff?.role ?? "")
-    .trim()
-    .toLowerCase();
-
-  if (!["nurse", "doctor", "admin", "administrator"].includes(role)) {
-    return res.status(403).json({
-      message: "You are not authorized to access this clinic resource.",
-    });
-  }
-
-  return next();
-}
-
-async function writeAuditEvent(
-  req,
-  { action, entityType, entityId, changedFields },
-) {
-  try {
-    const { error } = await supabase.from("audit_logs").insert({
-      actor_id: req.staff.id,
-      action,
-      entity_type: entityType,
-      entity_id: entityId == null ? null : String(entityId),
-      changed_fields: changedFields,
-    });
-
-    if (error) {
-      console.error("Audit log write failed:", error.message);
-      return "The change succeeded, but its audit event could not be saved.";
-    }
-  } catch (error) {
-    console.error("Audit log write failed:", error.message);
-    return "The change succeeded, but its audit event could not be saved.";
-  }
-
-  return null;
-}
-
-function auditWarningPayload(warning) {
-  return warning ? { auditWarning: warning } : {};
-}
-
-function isValidDateOnly(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 function mapStaffRecord(
@@ -680,10 +459,9 @@ if (!passwordMatches) {
       ? await createProfilePhotoUrl(staff.profile_image)
       : null;
 
-    return res
-      .cookie("udm_session", token, sessionCookieOptions)
-      .json({
+    return res.json({
       message: "Login successful.",
+      token,
       mustChangePassword: staff.must_change_password === true,
       user: mapStaffRecord(staff, profileImage),
     });
@@ -694,14 +472,6 @@ if (!passwordMatches) {
       message: "An unexpected login error occurred.",
     });
   }
-});
-
-app.post("/api/auth/logout", (_req, res) => {
-  const clearCookieOptions = { ...sessionCookieOptions };
-  delete clearCookieOptions.maxAge;
-  return res
-    .clearCookie("udm_session", clearCookieOptions)
-    .json({ message: "Logout successful." });
 });
 
 app.post(
@@ -1071,7 +841,7 @@ app.get(
   "/api/courses",
   authenticateToken,
   requireActiveStaff,
-  requireClinicStaffOrAdmin,
+  requireClinicStaff,
   async (_req, res) => {
     try {
       const { data, error } = await supabase
@@ -1120,7 +890,7 @@ app.get(
   "/api/patients",
   authenticateToken,
   requireActiveStaff,
-  requireClinicStaffOrAdmin,
+  requireClinicStaff,
   async (_req, res) => {
     try {
       const { data, error } = await supabase
@@ -1227,16 +997,8 @@ app.post(
         });
       }
 
-      const auditWarning = await writeAuditEvent(req, {
-        action: "patient.created",
-        entityType: "patient",
-        entityId: data.id,
-        changedFields: Object.keys(parsed.values),
-      });
-
       return res.status(201).json({
         message: "Patient added successfully.",
-        ...auditWarningPayload(auditWarning),
         patient: mapPatientRecord(data),
       });
     } catch (error) {
@@ -1314,16 +1076,8 @@ app.put(
         });
       }
 
-      const auditWarning = await writeAuditEvent(req, {
-        action: "patient.updated",
-        entityType: "patient",
-        entityId: data.id,
-        changedFields: Object.keys(parsed.values),
-      });
-
       return res.json({
         message: "Patient updated successfully.",
-        ...auditWarningPayload(auditWarning),
         patient: mapPatientRecord(data),
       });
     } catch (error) {
@@ -1379,16 +1133,8 @@ app.delete(
         });
       }
 
-      const auditWarning = await writeAuditEvent(req, {
-        action: "patient.deleted",
-        entityType: "patient",
-        entityId: data.id,
-        changedFields: [],
-      });
-
       return res.json({
         message: "Patient deleted successfully.",
-        ...auditWarningPayload(auditWarning),
         id: data.id,
       });
     } catch (error) {
@@ -1411,7 +1157,7 @@ app.get(
       const { data, error } = await supabase
         .from("medicines")
         .select(
-          "id, item_code, batch_number, brand_name, generic_name, category, dosage_form, strength, stock_quantity, unit, expiration_date",
+          "id, item_code, brand_name, generic_name, category, dosage_form, strength, stock_quantity, unit, expiration_date",
         )
         .order("generic_name", { ascending: true });
 
@@ -1440,38 +1186,6 @@ app.get(
   },
 );
 
-app.get(
-  "/api/medicines/movements",
-  authenticateToken,
-  requireActiveStaff,
-  requireClinicStaff,
-  async (_req, res) => {
-    try {
-      const { data, error } = await supabase
-        .from("inventory_movements")
-        .select(
-          "id, medicine_id, movement_type, quantity_change, patient_id, assessment_id, recorded_by, reason, created_at, medicines (brand_name, generic_name, strength, batch_number), patients (name, patient_id), staff_accounts (name, staff_id)",
-        )
-        .order("created_at", { ascending: false })
-        .limit(200);
-
-      if (error) {
-        console.error("Inventory movement lookup failed:", error.message);
-        return res.status(500).json({
-          message: "Unable to load medicine movement history.",
-        });
-      }
-
-      return res.json({ movements: data || [] });
-    } catch (error) {
-      console.error("Inventory movement lookup failed:", error.message);
-      return res.status(500).json({
-        message: "Unable to load medicine movement history.",
-      });
-    }
-  },
-);
-
 app.post(
   "/api/medicines",
   authenticateToken,
@@ -1490,69 +1204,45 @@ app.post(
         typeof body.expirationDate === "string"
           ? body.expirationDate.trim()
           : "";
-      const batchNumber =
-        typeof body.batchNumber === "string"
-          ? body.batchNumber.trim()
-          : "";
       const stockQuantity = Number(body.stockQuantity);
 
       if (
         !medicineName ||
-        medicineName.length > 200 ||
         !dosage ||
-        dosage.length > 100 ||
-        !batchNumber ||
-        batchNumber.length > 100 ||
-        !isValidDateOnly(expirationDate) ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(expirationDate) ||
         !Number.isInteger(stockQuantity) ||
         stockQuantity < 0
       ) {
         return res.status(400).json({
           message:
-            "Medicine name, dosage, batch number, a valid expiration date, and a non-negative whole-number stock quantity are required.",
+            "Medicine name, dosage, a valid expiration date, and a non-negative whole-number stock quantity are required.",
         });
       }
 
-      const { data, error } = await supabase.rpc("create_medicine_batch", {
-        p_item_code: `MED-${randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`,
-        p_generic_name: medicineName,
-        p_category: "Clinic Inventory",
-        p_strength: dosage,
-        p_expiration_date: expirationDate,
-        p_stock_quantity: stockQuantity,
-        p_batch_number: batchNumber,
-        p_recorded_by: req.staff.id,
-      });
+      const { data, error } = await supabase
+        .from("medicines")
+        .insert({
+          item_code: `MED-${randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`,
+          generic_name: medicineName,
+          category: "Clinic Inventory",
+          strength: dosage,
+          expiration_date: expirationDate,
+          stock_quantity: stockQuantity,
+        })
+        .select(
+          "id, item_code, brand_name, generic_name, category, dosage_form, strength, stock_quantity, unit, expiration_date",
+        )
+        .single();
 
       if (error) {
-        if (error.message?.includes("medicines_batch_number_uidx")) {
-          return res.status(409).json({
-            message: "That batch number is already in use.",
-          });
-        }
-
         console.error("Medicine creation failed:", error.message);
         return res.status(500).json({
           message: "Unable to add the medicine to inventory.",
         });
       }
 
-      const auditWarning = await writeAuditEvent(req, {
-        action: "medicine.batch_created",
-        entityType: "medicine",
-        entityId: data.id,
-        changedFields: [
-          "generic_name",
-          "strength",
-          "batch_number",
-          "expiration_date",
-          "stock_quantity",
-        ],
-      });
-
       return res.status(201).json({
         message: "Medicine added to inventory.",
-        ...auditWarningPayload(auditWarning),
         medicine: {
           ...data,
           medicine_name: data.brand_name || data.generic_name,
@@ -1592,7 +1282,6 @@ app.put(
       const { data, error } = await supabase.rpc("restock_medicine", {
         p_medicine_id: medicineId,
         p_quantity: quantity,
-        p_recorded_by: req.staff.id,
       });
 
       if (error) {
@@ -1608,16 +1297,8 @@ app.put(
         });
       }
 
-      const auditWarning = await writeAuditEvent(req, {
-        action: "medicine.restocked",
-        entityType: "medicine",
-        entityId: data.id,
-        changedFields: ["stock_quantity"],
-      });
-
       return res.json({
         message: "Medicine stock updated.",
-        ...auditWarningPayload(auditWarning),
         medicine: {
           ...data,
           medicine_name: data.brand_name || data.generic_name,
@@ -1732,16 +1413,8 @@ app.post(
         });
       }
 
-      const auditWarning = await writeAuditEvent(req, {
-        action: "patient.drug_test_recorded",
-        entityType: "drug_test_result",
-        entityId: data.id,
-        changedFields: ["testing_date", "status", "remarks"],
-      });
-
       return res.status(201).json({
         message: "Drug test result saved successfully.",
-        ...auditWarningPayload(auditWarning),
         drugTest: data,
       });
     } catch (error) {
@@ -1749,348 +1422,6 @@ app.post(
       return res.status(500).json({
         message: "Unable to save the drug test result.",
       });
-    }
-  },
-);
-
-app.get(
-  "/api/patients/:id/history",
-  authenticateToken,
-  requireActiveStaff,
-  requireClinicStaff,
-  async (req, res) => {
-    const patientId = Number(req.params.id);
-
-    if (!Number.isInteger(patientId) || patientId <= 0) {
-      return res.status(400).json({ message: "Invalid patient record ID." });
-    }
-
-    try {
-      const { data: patient, error: patientError } = await supabase
-        .from("patients")
-        .select("id")
-        .eq("id", patientId)
-        .maybeSingle();
-
-      if (patientError) {
-        console.error("Patient history lookup failed:", patientError.message);
-        return res.status(500).json({ message: "Unable to load patient history." });
-      }
-
-      if (!patient) {
-        return res.status(404).json({ message: "Patient record not found." });
-      }
-
-      const [assessments, drugTests, dispensations, allergies, followUps] =
-        await Promise.all([
-          supabase
-            .from("clinic_assessments")
-            .select("id, patient_id, height, weight, blood_pressure, temperature, heart_rate, spo2, bmi, bmi_status, reason, notes, recorded_by, created_at")
-            .eq("patient_id", patientId)
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("drug_test_results")
-            .select("id, patient_id, testing_date, status, remarks, recorded_by, created_at")
-            .eq("patient_id", patientId)
-            .order("testing_date", { ascending: false }),
-          supabase
-            .from("medicine_dispensations")
-            .select("id, patient_id, assessment_id, medicine_id, quantity, dispensed_by, dispensed_at, medicines (brand_name, generic_name, strength, batch_number)")
-            .eq("patient_id", patientId)
-            .order("dispensed_at", { ascending: false }),
-          supabase
-            .from("patient_allergies")
-            .select("id, patient_id, allergy_name, reaction, severity, status, recorded_by, created_at, resolved_at")
-            .eq("patient_id", patientId)
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("patient_follow_ups")
-            .select("id, patient_id, follow_up_date, title, notes, status, recorded_by, created_at, updated_at, completed_at")
-            .eq("patient_id", patientId)
-            .order("follow_up_date", { ascending: false }),
-        ]);
-      const failedQuery = [
-        assessments,
-        drugTests,
-        dispensations,
-        allergies,
-        followUps,
-      ].find((result) => result.error);
-
-      if (failedQuery) {
-        console.error("Patient history query failed:", failedQuery.error.message);
-        return res.status(500).json({ message: "Unable to load patient history." });
-      }
-
-      return res.json({
-        assessments: assessments.data || [],
-        drugTests: drugTests.data || [],
-        dispensations: dispensations.data || [],
-        allergies: allergies.data || [],
-        followUps: followUps.data || [],
-      });
-    } catch (error) {
-      console.error("Patient history lookup failed:", error.message);
-      return res.status(500).json({ message: "Unable to load patient history." });
-    }
-  },
-);
-
-app.post(
-  "/api/patients/:id/allergies",
-  authenticateToken,
-  requireActiveStaff,
-  requireClinicStaff,
-  async (req, res) => {
-    const patientId = Number(req.params.id);
-    const allergyName =
-      typeof req.body?.allergyName === "string"
-        ? req.body.allergyName.trim()
-        : "";
-    const reaction =
-      typeof req.body?.reaction === "string" ? req.body.reaction.trim() : "";
-    const severity = ["Mild", "Moderate", "Severe", "Unknown"].includes(
-      req.body?.severity,
-    )
-      ? req.body.severity
-      : "Unknown";
-
-    if (
-      !Number.isInteger(patientId) ||
-      patientId <= 0 ||
-      !allergyName ||
-      allergyName.length > 200 ||
-      reaction.length > 1000
-    ) {
-      return res.status(400).json({
-        message: "Enter a valid allergy name and reaction.",
-      });
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("patient_allergies")
-        .insert({
-          patient_id: patientId,
-          allergy_name: allergyName,
-          reaction: reaction || null,
-          severity,
-          recorded_by: req.staff.id,
-        })
-        .select("id, patient_id, allergy_name, reaction, severity, status, recorded_by, created_at, resolved_at")
-        .single();
-
-      if (error) {
-        if (error.code === "23503") {
-          return res.status(404).json({ message: "Patient record not found." });
-        }
-
-        console.error("Patient allergy creation failed:", error.message);
-        return res.status(500).json({ message: "Unable to save the allergy." });
-      }
-
-      const auditWarning = await writeAuditEvent(req, {
-        action: "patient_allergy.created",
-        entityType: "patient_allergy",
-        entityId: data.id,
-        changedFields: ["allergy_name", "reaction", "severity"],
-      });
-
-      return res.status(201).json({
-        allergy: data,
-        ...auditWarningPayload(auditWarning),
-      });
-    } catch (error) {
-      console.error("Patient allergy creation failed:", error.message);
-      return res.status(500).json({ message: "Unable to save the allergy." });
-    }
-  },
-);
-
-app.put(
-  "/api/patients/:id/allergies/:allergyId",
-  authenticateToken,
-  requireActiveStaff,
-  requireClinicStaff,
-  async (req, res) => {
-    const patientId = Number(req.params.id);
-    const allergyId = Number(req.params.allergyId);
-    const status = req.body?.status;
-
-    if (
-      !Number.isInteger(patientId) ||
-      patientId <= 0 ||
-      !Number.isInteger(allergyId) ||
-      allergyId <= 0 ||
-      !["Active", "Resolved"].includes(status)
-    ) {
-      return res.status(400).json({ message: "Invalid allergy update." });
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("patient_allergies")
-        .update({
-          status,
-          resolved_at: status === "Resolved" ? new Date().toISOString() : null,
-        })
-        .eq("id", allergyId)
-        .eq("patient_id", patientId)
-        .select("id, patient_id, allergy_name, reaction, severity, status, recorded_by, created_at, resolved_at")
-        .maybeSingle();
-
-      if (error) {
-        console.error("Patient allergy update failed:", error.message);
-        return res.status(500).json({ message: "Unable to update the allergy." });
-      }
-
-      if (!data) {
-        return res.status(404).json({ message: "Allergy record not found." });
-      }
-
-      const auditWarning = await writeAuditEvent(req, {
-        action: "patient_allergy.updated",
-        entityType: "patient_allergy",
-        entityId: data.id,
-        changedFields: ["status"],
-      });
-
-      return res.json({
-        allergy: data,
-        ...auditWarningPayload(auditWarning),
-      });
-    } catch (error) {
-      console.error("Patient allergy update failed:", error.message);
-      return res.status(500).json({ message: "Unable to update the allergy." });
-    }
-  },
-);
-
-app.post(
-  "/api/patients/:id/follow-ups",
-  authenticateToken,
-  requireActiveStaff,
-  requireClinicStaff,
-  async (req, res) => {
-    const patientId = Number(req.params.id);
-    const followUpDate =
-      typeof req.body?.followUpDate === "string"
-        ? req.body.followUpDate.trim()
-        : "";
-    const title =
-      typeof req.body?.title === "string" ? req.body.title.trim() : "";
-    const notes =
-      typeof req.body?.notes === "string" ? req.body.notes.trim() : "";
-
-    if (
-      !Number.isInteger(patientId) ||
-      patientId <= 0 ||
-      !isValidDateOnly(followUpDate) ||
-      !title ||
-      title.length > 150 ||
-      notes.length > 2000
-    ) {
-      return res.status(400).json({
-        message: "Enter a valid follow-up date and title.",
-      });
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("patient_follow_ups")
-        .insert({
-          patient_id: patientId,
-          follow_up_date: followUpDate,
-          title,
-          notes: notes || null,
-          recorded_by: req.staff.id,
-        })
-        .select("id, patient_id, follow_up_date, title, notes, status, recorded_by, created_at, updated_at, completed_at")
-        .single();
-
-      if (error) {
-        if (error.code === "23503") {
-          return res.status(404).json({ message: "Patient record not found." });
-        }
-
-        console.error("Patient follow-up creation failed:", error.message);
-        return res.status(500).json({ message: "Unable to save the follow-up." });
-      }
-
-      const auditWarning = await writeAuditEvent(req, {
-        action: "patient_follow_up.created",
-        entityType: "patient_follow_up",
-        entityId: data.id,
-        changedFields: ["follow_up_date", "title", "notes", "status"],
-      });
-
-      return res.status(201).json({
-        followUp: data,
-        ...auditWarningPayload(auditWarning),
-      });
-    } catch (error) {
-      console.error("Patient follow-up creation failed:", error.message);
-      return res.status(500).json({ message: "Unable to save the follow-up." });
-    }
-  },
-);
-
-app.put(
-  "/api/patients/:id/follow-ups/:followUpId",
-  authenticateToken,
-  requireActiveStaff,
-  requireClinicStaff,
-  async (req, res) => {
-    const patientId = Number(req.params.id);
-    const followUpId = Number(req.params.followUpId);
-    const status = req.body?.status;
-
-    if (
-      !Number.isInteger(patientId) ||
-      patientId <= 0 ||
-      !Number.isInteger(followUpId) ||
-      followUpId <= 0 ||
-      !["Scheduled", "Completed", "Cancelled"].includes(status)
-    ) {
-      return res.status(400).json({ message: "Invalid follow-up update." });
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("patient_follow_ups")
-        .update({
-          status,
-          updated_at: new Date().toISOString(),
-          completed_at: status === "Completed" ? new Date().toISOString() : null,
-        })
-        .eq("id", followUpId)
-        .eq("patient_id", patientId)
-        .select("id, patient_id, follow_up_date, title, notes, status, recorded_by, created_at, updated_at, completed_at")
-        .maybeSingle();
-
-      if (error) {
-        console.error("Patient follow-up update failed:", error.message);
-        return res.status(500).json({ message: "Unable to update the follow-up." });
-      }
-
-      if (!data) {
-        return res.status(404).json({ message: "Follow-up record not found." });
-      }
-
-      const auditWarning = await writeAuditEvent(req, {
-        action: "patient_follow_up.updated",
-        entityType: "patient_follow_up",
-        entityId: data.id,
-        changedFields: ["status"],
-      });
-
-      return res.json({
-        followUp: data,
-        ...auditWarningPayload(auditWarning),
-      });
-    } catch (error) {
-      console.error("Patient follow-up update failed:", error.message);
-      return res.status(500).json({ message: "Unable to update the follow-up." });
     }
   },
 );
@@ -2333,22 +1664,8 @@ app.post(
         });
       }
 
-      const auditWarning = await writeAuditEvent(req, {
-        action: "assessment.created",
-        entityType: "clinic_assessment",
-        entityId: data.id,
-        changedFields: [
-          "patient_id",
-          "vitals",
-          "reason",
-          "notes",
-          ...(selectedMedicineId === null ? [] : ["medicine_dispensed"]),
-        ],
-      });
-
       return res.status(201).json({
         message: "Clinic assessment saved successfully.",
-        ...auditWarningPayload(auditWarning),
         assessment: data,
       });
     } catch (error) {
@@ -2488,25 +1805,8 @@ app.put(
         });
       }
 
-      const auditWarning = await writeAuditEvent(req, {
-        action: "assessment.updated",
-        entityType: "clinic_assessment",
-        entityId: data.id,
-        changedFields: [
-          "height",
-          "weight",
-          "blood_pressure",
-          "temperature",
-          "heart_rate",
-          "spo2",
-          "reason",
-          "notes",
-        ],
-      });
-
       return res.json({
         message: "Clinic assessment updated successfully.",
-        ...auditWarningPayload(auditWarning),
         assessment: data,
       });
     } catch (error) {
@@ -2561,16 +1861,8 @@ app.delete(
         });
       }
 
-      const auditWarning = await writeAuditEvent(req, {
-        action: "assessment.deleted",
-        entityType: "clinic_assessment",
-        entityId: data.id,
-        changedFields: [],
-      });
-
       return res.json({
         message: "Clinic assessment deleted successfully.",
-        ...auditWarningPayload(auditWarning),
         id: data.id,
       });
     } catch (error) {

@@ -1,4 +1,3 @@
-import { apiFetch } from "../utils/api";
 import { useState } from "react";
 import { LockKeyhole, LogOut } from "lucide-react";
 
@@ -39,7 +38,7 @@ function ChangePassword({ user, onPasswordChanged, onLogout }) {
       return;
     }
 
-    const token = localStorage.getItem("udm_authenticated");
+    const token = localStorage.getItem("udm_auth_token");
 
     if (!token) {
       setError("Your session has expired. Please log in again.");
@@ -49,9 +48,10 @@ function ChangePassword({ user, onPasswordChanged, onLogout }) {
     setSaving(true);
 
     try {
-      const response = await apiFetch(`${API_URL}/api/auth/change-password`, {
+      const response = await fetch(`${API_URL}/api/auth/change-password`, {
         method: "POST",
         headers: {
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

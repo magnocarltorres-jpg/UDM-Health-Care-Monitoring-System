@@ -1,4 +1,3 @@
-import { apiFetch } from "../utils/api";
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import {
@@ -60,13 +59,13 @@ function Assessment({
 
     async function loadMedicines() {
       try {
-        const token = localStorage.getItem("udm_authenticated");
+        const token = localStorage.getItem("udm_auth_token");
         if (!token) {
           throw new Error("Your session has expired. Please log in again.");
         }
 
-        const response = await apiFetch(`${API_URL}/api/medicines`, {
-          headers: {},
+        const response = await fetch(`${API_URL}/api/medicines`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
         const result = await response.json().catch(() => ({}));
 
@@ -225,7 +224,7 @@ function Assessment({
       return;
     }
 
-    const token = localStorage.getItem("udm_authenticated");
+    const token = localStorage.getItem("udm_auth_token");
 
     if (!token) {
       setSaveError("Your session has expired. Please log in again.");
@@ -252,10 +251,11 @@ function Assessment({
     setIsSaving(true);
 
     try {
-      const response = await apiFetch(`${API_URL}/api/assessments`, {
+      const response = await fetch(`${API_URL}/api/assessments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(assessmentData),
       });
@@ -664,15 +664,9 @@ function Assessment({
                         medicine.expiration_date >=
                           getClinicDateInputValue(),
                     )
-                    .sort((first, second) =>
-                      first.expiration_date.localeCompare(
-                        second.expiration_date,
-                      ),
-                    )
                     .map((medicine) => (
                       <option key={medicine.id} value={medicine.id}>
-                        {medicine.medicine_name} ({medicine.dosage}) · Batch{" "}
-                        {medicine.batch_number} ·{" "}
+                        {medicine.medicine_name} ({medicine.dosage}) —{" "}
                         {medicine.stock_quantity} in stock
                       </option>
                     ))}

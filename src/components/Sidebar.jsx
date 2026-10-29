@@ -6,7 +6,6 @@ import {
   Stethoscope,
   ClipboardCheck,
   FileText,
-  BarChart3,
   Pill,
   Settings,
   LogOut,
@@ -31,7 +30,6 @@ function Sidebar({ currentPage, onNavigate, user, onLogout }) {
     { label: "Assessment", page: "assessment", icon: ClipboardCheck },
     { label: "Records", page: "records", icon: FileText },
     { label: "Medicine Inventory", page: "medicine-inventory", icon: Pill },
-    { label: "Reports & Activity", page: "reports", icon: BarChart3 },
   ];
 
   const getInitials = (name) =>

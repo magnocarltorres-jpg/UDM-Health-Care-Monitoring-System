@@ -1,4 +1,3 @@
-import { apiFetch } from "../utils/api";
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
@@ -47,15 +46,15 @@ function EditPatient({
 
     async function loadCourses() {
       try {
-        const token = localStorage.getItem("udm_authenticated");
+        const token = localStorage.getItem("udm_auth_token");
 
         if (!token) {
           throw new Error("Your session has expired. Please log in again.");
         }
 
-        const response = await apiFetch(
+        const response = await fetch(
           `${(import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com").replace(/\/+$/, "")}/api/courses`,
-          { headers: {} },
+          { headers: { Authorization: `Bearer ${token}` } },
         );
         const result = await response.json().catch(() => ({}));
 

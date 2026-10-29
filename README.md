@@ -74,30 +74,3 @@ accounts receive sequential `NUR-###` IDs and Doctor accounts receive
 sequential `DOC-###` IDs. Each sequence starts after the highest existing ID
 with its role prefix and does not reuse IDs after an account is deleted.
 Existing `StaffID-###` account IDs are not changed.
-
-## Patient history, inventory, and audit
-
-Before deploying the patient history and reporting updates, apply
-[`backend/migrations/20261030_patient_history_inventory_audit.sql`](./backend/migrations/20261030_patient_history_inventory_audit.sql)
-to the Supabase database. It adds patient allergy and follow-up records, medicine
-batch numbers, stock movement history, aggregate report data, and an append-only
-audit log. Existing medicine rows are assigned `LEGACY-<id>` batch numbers.
-
-The inventory page flags batches with 10 or fewer units and batches expiring
-within 30 days. Dispensing remains restricted to unexpired batches with enough
-stock. Reports show aggregate visit and dispensing totals, current inventory
-alerts, and recent audit events. Audit entries record the staff account,
-action, record identifier, and changed field names, but not patient values.
-
-Clinic visit history is loaded from the authenticated backend rather than
-persisted in browser storage. The app removes any old `udm_clinic_history`
-browser-storage entry on startup.
-
-Authentication uses an `HttpOnly` session cookie rather than a JavaScript-
-readable token. The frontend sends credentials with API requests, and the API
-requires an allowed `Origin` plus the `X-Requested-With` request header for
-write operations. Configure the backend `CORS_ORIGINS` environment variable
-with the exact deployed frontend origin(s), comma-separated; include the local
-Vite origin when needed for development. Production cookies require HTTPS.
-Existing bearer-token sessions are invalidated by this change, so staff must
-sign in again after deployment.

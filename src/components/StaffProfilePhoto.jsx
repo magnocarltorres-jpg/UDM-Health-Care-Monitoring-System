@@ -1,4 +1,3 @@
-import { apiFetch } from "../utils/api";
 
 import { useEffect, useRef, useState } from "react";
 import { Camera, Trash2, UserRound, LoaderCircle } from "lucide-react";
@@ -31,7 +30,7 @@ export default function StaffProfilePhoto({
     setError("");
     setMessage("");
 
-    const token = localStorage.getItem("udm_authenticated");
+    const token = localStorage.getItem("udm_auth_token");
 
     if (!token) {
       setError("Your session has expired. Please log in again.");
@@ -46,11 +45,12 @@ export default function StaffProfilePhoto({
     setLoading(true);
 
     try {
-      const response = await apiFetch(
+      const response = await fetch(
         `${API_URL}/api/staff/${encodeURIComponent(user.id)}/photo`,
         {
           method: "PUT",
           headers: {
+            Authorization: `Bearer ${token}`,
           },
           body: formData,
         },

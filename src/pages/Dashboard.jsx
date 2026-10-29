@@ -19,7 +19,6 @@ import {
 import Sidebar from "../components/Sidebar";
 import {
   formatClinicDate,
-  formatClinicTime,
   getClinicDateKey,
   getClinicGreeting,
 } from "../utils/dateTime";
@@ -65,20 +64,13 @@ function Dashboard({
   const today = getClinicDateKey();
 
   const todaysVisits = history.filter((record) => {
-    return getClinicDateKey(
-      record.dateKey || record.created_at || record.date,
-    ) === today;
+    if (record.dateKey) return record.dateKey === today;
+
+    return getClinicDateKey(record.date) === today;
   });
 
   const totalAssessments = history.length;
-  const recentActivity = history
-    .slice()
-    .sort(
-      (first, second) =>
-        new Date(second.created_at || second.date || 0).getTime() -
-        new Date(first.created_at || first.date || 0).getTime(),
-    )
-    .slice(0, 5);
+  const recentActivity = history.slice().reverse().slice(0, 5);
 
   const formatCurrentDate = () =>
     formatClinicDate(new Date(), {
@@ -660,7 +652,6 @@ function Dashboard({
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-gray-900">
                           {record.patientName ||
-                            record.patients?.name ||
                             record.name ||
                             "Patient visit"}
                         </p>
@@ -674,17 +665,11 @@ function Dashboard({
                     <div className="flex items-center justify-between gap-4 sm:justify-end">
                       <div className="text-left sm:text-right">
                         <p className="text-sm font-semibold text-gray-700">
-                          {record.date ||
-                            (record.created_at
-                              ? formatClinicDate(record.created_at)
-                              : "Date unavailable")}
+                          {record.date || "Date unavailable"}
                         </p>
 
                         <p className="mt-1 text-xs text-gray-500">
-                          {record.time ||
-                            (record.created_at
-                              ? formatClinicTime(record.created_at)
-                              : "Time unavailable")}
+                          {record.time || "Time unavailable"}
                         </p>
                       </div>
 

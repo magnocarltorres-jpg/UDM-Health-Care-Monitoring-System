@@ -1,4 +1,3 @@
-import { apiFetch } from "../utils/api";
 import { useEffect, useRef, useState } from "react";
 import clinicLogo from "../assets/clinic.png";
 import {
@@ -77,7 +76,7 @@ const handleContactSubmit = async (event) => {
   setContactMessage("");
 
   try {
-    const response = await apiFetch(
+    const response = await fetch(
       `${API_URL.replace(/\/+$/, "")}/api/contact-inquiries`,
       {
         method: "POST",
