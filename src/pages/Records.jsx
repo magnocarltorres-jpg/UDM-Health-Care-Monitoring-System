@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
+import { formatClinicDate, formatClinicTime, getClinicDateKey } from "../utils/dateTime";
 import {
   Search,
   FileText,
@@ -62,8 +63,9 @@ function formatRecord(record) {
     bmiStatus: record.bmi_status || record.bmiStatus || "",
     reason: record.reason || "",
     notes: record.notes || "",
-    date: validDate ? createdAt.toLocaleDateString() : "--",
-    time: validDate ? createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
+    date: validDate ? formatClinicDate(createdAt) : "--",
+    time: validDate ? formatClinicTime(createdAt) : "",
+    dateKey: validDate ? getClinicDateKey(createdAt) : "",
     createdAt: record.created_at,
   };
 }
@@ -144,8 +146,8 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
     })
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
-  const today = new Date().toLocaleDateString();
-  const todaysRecords = records.filter((record) => record.date === today).length;
+  const today = getClinicDateKey();
+  const todaysRecords = records.filter((record) => record.dateKey === today).length;
 
   const startEditing = (record) => {
     setActionError("");
@@ -397,7 +399,7 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
             </div>
             <div className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600 shadow-sm sm:self-auto">
               <CalendarDays size={17} className="text-emerald-700" />
-              <span>{new Date().toLocaleDateString(undefined, {
+              <span>{formatClinicDate(new Date(), {
                 month: "short",
                 day: "numeric",
                 year: "numeric",

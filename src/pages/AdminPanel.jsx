@@ -32,6 +32,7 @@ import {
   UserX,
   X,
 } from "lucide-react";
+import { formatClinicDateTime } from "../utils/dateTime";
 
 /* -------------------------------------------------------------------------- */
 /*  Config & API helpers                                                      */
@@ -102,8 +103,7 @@ const isAdministratorAccount = (member) =>
 
 function formatDate(value) {
   if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
+  return formatClinicDateTime(value);
 }
 
 function getInitials(name) {
@@ -1007,7 +1007,8 @@ export default function AdminPanel({ user, onLogout }) {
               <div className="hidden items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 sm:flex">
                 <CalendarDays size={16} className="text-green-800" />
                 <span className="text-xs font-medium text-gray-600">
-                  {new Date().toLocaleDateString(undefined, {
+                  {new Date().toLocaleDateString("en-PH", {
+                    timeZone: "Asia/Manila",
                     month: "short",
                     day: "numeric",
                     year: "numeric",

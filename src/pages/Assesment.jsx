@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import {
+  formatClinicDate,
+  formatClinicTime,
+  getClinicDateInputValue,
+  getClinicDateKey,
+} from "../utils/dateTime";
+import {
   ArrowLeft,
   Save,
   User,
@@ -289,11 +295,12 @@ function Assessment({
         reason: saved.reason,
         notes: saved.notes,
         date: saved.created_at
-          ? new Date(saved.created_at).toLocaleDateString()
+          ? formatClinicDate(saved.created_at)
           : "",
         time: saved.created_at
-          ? new Date(saved.created_at).toLocaleTimeString()
+          ? formatClinicTime(saved.created_at, { second: "2-digit" })
           : "",
+        dateKey: getClinicDateKey(saved.created_at),
       };
 
       if (typeof onSaveAssessment === "function") {
@@ -655,7 +662,7 @@ function Assessment({
                       (medicine) =>
                         medicine.stock_quantity > 0 &&
                         medicine.expiration_date >=
-                          new Date().toISOString().slice(0, 10),
+                          getClinicDateInputValue(),
                     )
                     .map((medicine) => (
                       <option key={medicine.id} value={medicine.id}>
@@ -674,7 +681,7 @@ function Assessment({
                     (medicine) =>
                       medicine.stock_quantity > 0 &&
                       medicine.expiration_date >=
-                        new Date().toISOString().slice(0, 10),
+                        getClinicDateInputValue(),
                   ).length === 0 && (
                     <p className="mt-2 text-sm text-gray-500">
                       No unexpired medicine is currently in stock.

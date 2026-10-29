@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, PackagePlus } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import { getClinicDateInputValue } from "../utils/dateTime";
 
 const API_URL = (
   import.meta.env.VITE_API_URL ||
@@ -325,7 +326,7 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
                   const expired =
                     medicine.expiration_date &&
                     medicine.expiration_date <
-                      new Date().toISOString().slice(0, 10);
+                      getClinicDateInputValue();
 
                   return (
                     <article

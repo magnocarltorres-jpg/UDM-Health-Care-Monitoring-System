@@ -17,6 +17,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { getClinicDateInputValue } from "../utils/dateTime";
 
 const API_URL = (
   import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
@@ -36,7 +37,7 @@ function PatientProfile({
   const [drugTestsLoading, setDrugTestsLoading] = useState(false);
   const [drugTestError, setDrugTestError] = useState("");
   const [testingDate, setTestingDate] = useState(
-    new Date().toISOString().slice(0, 10),
+    getClinicDateInputValue(),
   );
   const [drugTestStatus, setDrugTestStatus] = useState("");
   const [drugTestRemarks, setDrugTestRemarks] = useState("");

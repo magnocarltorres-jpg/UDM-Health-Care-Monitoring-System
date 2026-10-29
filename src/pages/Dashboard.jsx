@@ -17,6 +17,7 @@ import {
   ClipboardPlus,
 } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import { formatClinicDate, getClinicDateKey } from "../utils/dateTime";
 
 function Dashboard({
   user,
@@ -56,19 +57,19 @@ function Dashboard({
     );
   });
 
-  const today = new Date().toLocaleDateString();
+  const today = getClinicDateKey();
 
   const todaysVisits = history.filter((record) => {
-    if (!record.date) return false;
+    if (record.dateKey) return record.dateKey === today;
 
-    return record.date === today;
+    return getClinicDateKey(record.date) === today;
   });
 
   const totalAssessments = history.length;
   const recentActivity = history.slice().reverse().slice(0, 5);
 
   const formatCurrentDate = () =>
-    new Date().toLocaleDateString(undefined, {
+    formatClinicDate(new Date(), {
       weekday: "long",
       month: "long",
       day: "numeric",
