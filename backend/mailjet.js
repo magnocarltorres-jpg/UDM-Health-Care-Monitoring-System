@@ -174,7 +174,7 @@ export async function sendPasswordResetEmail({
   <body style="margin:0;padding:24px;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#202124;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;">
       <div style="padding:28px 32px;background:#176b59;color:#ffffff;text-align:center;">
-        <img src="https://udm-health-care-monitoring-system.magnocarltorres.workers.dev/clinic.jpg" alt="UDM Clinic logo" width="88" height="88" style="display:block;width:88px;height:88px;margin:0 auto 18px;border:0;border-radius:50%;background:#ffffff;">
+        <img src="https://udm-health-care-monitoring-system.magnocarltorres.workers.dev/clinic.png" alt="UDM Clinic logo" width="88" height="88" style="display:block;width:88px;height:88px;margin:0 auto 18px;border:0;border-radius:50%;background:#ffffff;">
         <h1 style="margin:0;font-size:24px;">Password Reset</h1>
       </div>
       <div style="padding:32px;">

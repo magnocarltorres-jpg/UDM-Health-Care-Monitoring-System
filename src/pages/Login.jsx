@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import clinicLogo from "../assets/clinic.jpg";
+import clinicLogo from "../assets/clinic.png";
 import bgclinic from "../assets/bgclinic.jpg";
 
 const API_URL = (

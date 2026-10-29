@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import clinicLogo from "../assets/clinic.jpg";
+import clinicLogo from "../assets/clinic.png";
 import {
   ClipboardPlus,
   HeartPulse,
