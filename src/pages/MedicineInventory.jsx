@@ -1,7 +1,8 @@
+import { apiFetch } from "../utils/api";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, PackagePlus } from "lucide-react";
 import Sidebar from "../components/Sidebar";
-import { getClinicDateInputValue } from "../utils/dateTime";
+import { getClinicDateInputValue, getClinicDateKey } from "../utils/dateTime";
 
 const API_URL = (
   import.meta.env.VITE_API_URL ||
@@ -17,26 +18,30 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
   const [medicines, setMedicines] = useState([]);
   const [medicineName, setMedicineName] = useState("");
   const [dosage, setDosage] = useState("");
+  const [batchNumber, setBatchNumber] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
+  const [movements, setMovements] = useState([]);
+  const [movementsError, setMovementsError] = useState("");
   const [restockAmounts, setRestockAmounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [warningMessage, setWarningMessage] = useState("");
 
   const authHeaders = useCallback(() => {
-    const token = localStorage.getItem("udm_auth_token");
+    const token = localStorage.getItem("udm_authenticated");
 
     if (!token) {
       throw new Error("Your session has expired. Please log in again.");
     }
 
-    return { Authorization: `Bearer ${token}` };
+    return {};
   }, []);
 
   const loadMedicines = useCallback(async () => {
-    const response = await fetch(`${API_URL}/api/medicines`, {
+    const response = await apiFetch(`${API_URL}/api/medicines`, {
       headers: authHeaders(),
     });
 
@@ -53,12 +58,40 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
     );
   }, [authHeaders]);
 
+  const loadMovements = useCallback(async () => {
+    const response = await apiFetch(`${API_URL}/api/medicines/movements`, {
+      headers: authHeaders(),
+    });
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.message || "Unable to load medicine history.");
+    }
+
+    setMovements(Array.isArray(result.movements) ? result.movements : []);
+    setMovementsError("");
+  }, [authHeaders]);
+
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
       try {
-        await loadMedicines();
+        const results = await Promise.allSettled([
+          loadMedicines(),
+          loadMovements(),
+        ]);
+        const movementResult = results[1];
+
+        if (movementResult.status === "rejected" && !cancelled) {
+          setMovementsError(
+            movementResult.reason.message || "Unable to load medicine history.",
+          );
+        }
+
+        if (results[0].status === "rejected") {
+          throw results[0].reason;
+        }
       } catch (error) {
         if (!cancelled) {
           setErrorMessage(
@@ -77,7 +110,7 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
     return () => {
       cancelled = true;
     };
-  }, [loadMedicines]);
+  }, [loadMedicines, loadMovements]);
 
   const handleAddMedicine = async (event) => {
     event.preventDefault();
@@ -87,9 +120,10 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
     setSaving(true);
     setErrorMessage("");
     setSuccessMessage("");
+    setWarningMessage("");
 
     try {
-      const response = await fetch(`${API_URL}/api/medicines`, {
+      const response = await apiFetch(`${API_URL}/api/medicines`, {
         method: "POST",
         headers: {
           ...authHeaders(),
@@ -98,6 +132,7 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
         body: JSON.stringify({
           medicineName: medicineName.trim(),
           dosage: dosage.trim(),
+          batchNumber: batchNumber.trim(),
           stockQuantity: Number(stockQuantity),
           expirationDate,
         }),
@@ -117,15 +152,18 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
             ),
           ),
         );
+        await loadMovements();
       } else {
-        await loadMedicines();
+        await Promise.all([loadMedicines(), loadMovements()]);
       }
 
       setMedicineName("");
       setDosage("");
+      setBatchNumber("");
       setStockQuantity("");
       setExpirationDate("");
       setSuccessMessage("Medicine batch added to inventory.");
+      setWarningMessage(result.auditWarning || "");
     } catch (error) {
       setErrorMessage(error.message || "Unable to add medicine.");
     } finally {
@@ -148,9 +186,10 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
     setSaving(true);
     setErrorMessage("");
     setSuccessMessage("");
+    setWarningMessage("");
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_URL}/api/medicines/${encodeURIComponent(medicineId)}/stock`,
         {
           method: "PUT",
@@ -168,7 +207,7 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
         throw new Error(result.message || "Unable to restock medicine.");
       }
 
-      await loadMedicines();
+      await Promise.all([loadMedicines(), loadMovements()]);
 
       setRestockAmounts((previous) => ({
         ...previous,
@@ -176,6 +215,7 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
       }));
 
       setSuccessMessage("Medicine stock updated.");
+      setWarningMessage(result.auditWarning || "");
     } catch (error) {
       setErrorMessage(error.message || "Unable to restock medicine.");
     } finally {
@@ -220,7 +260,7 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
               Add Medicine Batch
             </h2>
 
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
               <div>
                 <label htmlFor="medicineName" className={LABEL_CLASS}>
                   Medicine Name
@@ -243,6 +283,20 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
                   value={dosage}
                   onChange={(event) => setDosage(event.target.value)}
                   placeholder="e.g. 500 mg"
+                  required
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="batchNumber" className={LABEL_CLASS}>
+                  Batch / Lot Number
+                </label>
+                <input
+                  id="batchNumber"
+                  value={batchNumber}
+                  onChange={(event) => setBatchNumber(event.target.value)}
+                  maxLength={100}
                   required
                   className={INPUT_CLASS}
                 />
@@ -307,6 +361,15 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
             </p>
           )}
 
+          {warningMessage && (
+            <p
+              role="alert"
+              className="mb-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"
+            >
+              {warningMessage}
+            </p>
+          )}
+
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-5 py-4">
               <h2 className="font-bold text-slate-900">Stock on Hand</h2>
@@ -323,10 +386,20 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
             ) : (
               <div className="divide-y divide-slate-100">
                 {medicines.map((medicine) => {
+                  const expiryCutoff = new Date(
+                    `${getClinicDateInputValue()}T00:00:00+08:00`,
+                  );
+                  expiryCutoff.setDate(expiryCutoff.getDate() + 30);
                   const expired =
                     medicine.expiration_date &&
                     medicine.expiration_date <
                       getClinicDateInputValue();
+                  const expiringSoon =
+                    !expired &&
+                    medicine.expiration_date &&
+                    medicine.expiration_date <=
+                      getClinicDateKey(expiryCutoff);
+                  const lowStock = Number(medicine.stock_quantity) <= 10;
 
                   return (
                     <article
@@ -350,6 +423,8 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
                         <p className="mt-1 text-sm text-slate-500">
                           Code: {medicine.item_code || "--"}
                           {" · "}
+                          Batch: {medicine.batch_number || "--"}
+                          {" · "}
                           Stock:{" "}
                           <strong className="text-slate-800">
                             {medicine.stock_quantity}
@@ -360,6 +435,16 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
                           {expired && (
                             <span className="ml-2 font-semibold text-red-700">
                               Expired
+                            </span>
+                          )}
+                          {!expired && expiringSoon && (
+                            <span className="ml-2 font-semibold text-amber-700">
+                              Expires within 30 days
+                            </span>
+                          )}
+                          {lowStock && (
+                            <span className="ml-2 font-semibold text-amber-700">
+                              Low stock
                             </span>
                           )}
                         </p>
@@ -394,6 +479,87 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
                     </article>
                   );
                 })}
+              </div>
+            )}
+          </section>
+
+          <section className="mt-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="font-bold text-slate-900">
+                Stock & Dispensing History
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Recent receipts, restocks, and patient dispenses.
+              </p>
+            </div>
+            {movementsError ? (
+              <p role="alert" className="p-5 text-sm text-red-700">
+                {movementsError}
+              </p>
+            ) : movements.length === 0 ? (
+              <p className="p-5 text-sm text-slate-500">
+                No stock movements recorded yet.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="px-5 py-3">Date</th>
+                      <th className="px-5 py-3">Medicine / Batch</th>
+                      <th className="px-5 py-3">Movement</th>
+                      <th className="px-5 py-3">Patient</th>
+                      <th className="px-5 py-3">Staff</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {movements.map((movement) => {
+                      const medicine = Array.isArray(movement.medicines)
+                        ? movement.medicines[0]
+                        : movement.medicines;
+                      const patient = Array.isArray(movement.patients)
+                        ? movement.patients[0]
+                        : movement.patients;
+                      const staff = Array.isArray(movement.staff_accounts)
+                        ? movement.staff_accounts[0]
+                        : movement.staff_accounts;
+
+                      return (
+                        <tr key={movement.id}>
+                          <td className="whitespace-nowrap px-5 py-3 text-slate-600">
+                            {new Date(movement.created_at).toLocaleString(
+                              "en-PH",
+                              { timeZone: "Asia/Manila" },
+                            )}
+                          </td>
+                          <td className="px-5 py-3 text-slate-700">
+                            <span className="font-medium">
+                              {medicine?.brand_name ||
+                                medicine?.generic_name ||
+                                "Medicine"}
+                            </span>
+                            <span className="block text-xs text-slate-500">
+                              {medicine?.batch_number || "—"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 capitalize text-slate-700">
+                            {movement.movement_type}{" "}
+                            <strong>
+                              {movement.quantity_change > 0 ? "+" : ""}
+                              {movement.quantity_change}
+                            </strong>
+                          </td>
+                          <td className="px-5 py-3 text-slate-600">
+                            {patient?.name || "—"}
+                          </td>
+                          <td className="px-5 py-3 text-slate-600">
+                            {staff?.name || "Former staff"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </section>

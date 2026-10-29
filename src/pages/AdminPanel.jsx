@@ -1,9 +1,11 @@
+import { apiFetch } from "../utils/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  BarChart3,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -49,7 +51,7 @@ const NOTICE_TIMEOUT_MS = 6000;
 const emptyForm = { name: "", email: "", password: "", role: "Nurse" };
 
 async function api(path, { method = "GET", body } = {}) {
-  const token = localStorage.getItem("udm_auth_token");
+  const token = localStorage.getItem("udm_authenticated");
 
   if (!token) {
     const error = new Error("Your session has expired. Please log in again.");
@@ -57,10 +59,9 @@ async function api(path, { method = "GET", body } = {}) {
     throw error;
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await apiFetch(`${API_URL}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -487,7 +488,7 @@ function Pagination({ page, pageCount, total, onChange }) {
 /*  Main component                                                            */
 /* -------------------------------------------------------------------------- */
 
-export default function AdminPanel({ user, onLogout }) {
+export default function AdminPanel({ user, onLogout, onNavigate }) {
   const [activePage, setActivePage] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -539,6 +540,7 @@ export default function AdminPanel({ user, onLogout }) {
     { name: "Staff Management", icon: Users },
     { name: "Password Reset Requests", icon: KeyRound },
     { name: "Access Control", icon: ShieldCheck },
+    { name: "Reports & Activity", icon: BarChart3 },
     { name: "Settings", icon: Settings },
   ];
 
@@ -928,7 +930,11 @@ export default function AdminPanel({ user, onLogout }) {
               <button
                 key={item.name}
                 type="button"
-                onClick={() => navigateTo(item.name)}
+                onClick={() =>
+                  item.name === "Reports & Activity"
+                    ? onNavigate?.("reports")
+                    : navigateTo(item.name)
+                }
                 aria-current={selected ? "page" : undefined}
                 className={`group flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-left text-sm font-medium transition ${
                   selected

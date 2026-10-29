@@ -1,3 +1,4 @@
+import { apiFetch } from "./utils/api";
 import { useEffect, useState } from "react";
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
@@ -16,6 +17,7 @@ import Settings from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
 import ChangePassword from "./pages/ChangePassword";
 import MedicineInventory from "./pages/MedicineInventory";
+import Reports from "./pages/Reports";
 
 
 const API_URL = (
@@ -40,15 +42,7 @@ async function readResponse(response) {
 }
 
 function getAuthHeaders() {
-  const token = localStorage.getItem("udm_auth_token");
-
-  if (!token) {
-    throw new Error("Your session has expired. Please log in again.");
-  }
-
-  return {
-    Authorization: `Bearer ${token}`,
-  };
+  return {};
 }
 
 function getUserRole(user) {
@@ -80,17 +74,53 @@ function App() {
   const [nursesLoading, setNursesLoading] = useState(false);
   const [nursesError, setNursesError] = useState("");
 
-  const [clinicHistory, setClinicHistory] = useState(() => {
-    try {
-      const savedHistory = localStorage.getItem("udm_clinic_history");
-      return savedHistory ? JSON.parse(savedHistory) : [];
-    } catch {
-      return [];
+  const [clinicHistory, setClinicHistory] = useState([]);
+
+  useEffect(() => {
+    localStorage.removeItem("udm_auth_token");
+    localStorage.removeItem("udm_clinic_history");
+
+    let cancelled = false;
+
+    async function restoreSession() {
+      try {
+        const response = await apiFetch(`${API_URL}/api/auth/me`, {
+          cache: "no-store",
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (cancelled) return;
+
+        if (!response.ok || !result.user) {
+          localStorage.removeItem("udm_authenticated");
+          return;
+        }
+
+        localStorage.setItem("udm_authenticated", "true");
+        setUser(result.user);
+        setMustChangePassword(result.user.mustChangePassword === true);
+        setCurrentPage(
+          isAdministrator(result.user) ? "admin-panel" : "dashboard",
+        );
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Session restoration failed:", error);
+        }
+      }
     }
-  });
+
+    restoreSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleLogout = () => {
+    apiFetch(`${API_URL}/api/auth/logout`, { method: "POST" }).catch(
+      (error) => console.error("Server logout failed:", error),
+    );
     localStorage.removeItem("udm_auth_token");
+    localStorage.removeItem("udm_authenticated");
 
     setUser(null);
     setSelectedPatient(null);
@@ -99,6 +129,7 @@ function App() {
 
     setPatients([]);
     setNurses([]);
+    setClinicHistory([]);
 
     setPatientsError("");
     setNursesError("");
@@ -147,9 +178,9 @@ function App() {
     const checkAccountStatus = async () => {
       if (checking || cancelled || loggingOut) return;
 
-      const token = localStorage.getItem("udm_auth_token");
+      const authenticated = localStorage.getItem("udm_authenticated");
 
-      if (!token) {
+      if (!authenticated) {
         loggingOut = true;
         handleLogout();
         return;
@@ -158,10 +189,9 @@ function App() {
       checking = true;
 
       try {
-        const response = await fetch(`${API_URL}/api/auth/me`, {
+        const response = await apiFetch(`${API_URL}/api/auth/me`, {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Cache-Control": "no-cache",
           },
           cache: "no-store",
@@ -222,13 +252,6 @@ function App() {
   }, [user]);
 
   useEffect(() => {
-    localStorage.setItem(
-      "udm_clinic_history",
-      JSON.stringify(clinicHistory),
-    );
-  }, [clinicHistory]);
-
-  useEffect(() => {
     if (!user || !isClinicStaff(user) || mustChangePassword) {
       setPatients([]);
       setPatientsError("");
@@ -243,7 +266,7 @@ function App() {
       setPatientsError("");
 
       try {
-        const response = await fetch(`${API_URL}/api/patients`, {
+        const response = await apiFetch(`${API_URL}/api/patients`, {
           headers: getAuthHeaders(),
         });
 
@@ -278,6 +301,40 @@ function App() {
 
   useEffect(() => {
     if (!user || !isClinicStaff(user) || mustChangePassword) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadClinicHistory() {
+      try {
+        const response = await apiFetch(`${API_URL}/api/assessments`, {
+          headers: getAuthHeaders(),
+        });
+        const result = await readResponse(response);
+
+        if (!cancelled) {
+          setClinicHistory(
+            Array.isArray(result.assessments) ? result.assessments : [],
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Unable to load clinic activity:", error);
+          setClinicHistory([]);
+        }
+      }
+    }
+
+    loadClinicHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, mustChangePassword]);
+
+  useEffect(() => {
+    if (!user || !isClinicStaff(user) || mustChangePassword) {
       setNurses([]);
       setNursesError("");
       setNursesLoading(false);
@@ -291,7 +348,7 @@ function App() {
       setNursesError("");
 
       try {
-        const response = await fetch(`${API_URL}/api/nurses`, {
+        const response = await apiFetch(`${API_URL}/api/nurses`, {
           headers: getAuthHeaders(),
         });
 
@@ -326,6 +383,7 @@ function App() {
 
   const handleLogin = (loggedInUser, forcePasswordChange = false) => {
     setUser(loggedInUser);
+    setClinicHistory([]);
 
     setMustChangePassword(
       Boolean(forcePasswordChange || loggedInUser?.mustChangePassword),
@@ -343,7 +401,7 @@ function App() {
 
   const handleNavigate = (page) => {
     if (isAdministrator(user)) {
-      setCurrentPage("admin-panel");
+      setCurrentPage(page === "reports" ? "reports" : "admin-panel");
       return;
     }
 
@@ -420,7 +478,7 @@ function App() {
       formData.append("removeProfileImage", "true");
     }
 
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/staff/${encodeURIComponent(updatedNurse.id)}/photo`,
       {
         method: "PUT",
@@ -473,7 +531,7 @@ function App() {
         throw new Error("No patient record is selected.");
       }
 
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_URL}/api/patients/${selectedPatient.id}`,
         {
           method: "PUT",
@@ -523,7 +581,7 @@ function App() {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_URL}/api/patients/${selectedPatient.id}`,
         {
           method: "DELETE",
@@ -597,8 +655,25 @@ function App() {
     );
   }
 
+  if (isAdministrator(user) && currentPage === "reports") {
+    return (
+      <Reports
+        user={user}
+        currentPage={currentPage}
+        onNavigate={handleNavigate}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   if (isAdministrator(user)) {
-    return <AdminPanel user={user} onLogout={handleLogout} />;
+    return (
+      <AdminPanel
+        user={user}
+        onLogout={handleLogout}
+        onNavigate={handleNavigate}
+      />
+    );
   }
 
   if (currentPage === "admin-panel") {
@@ -657,10 +732,10 @@ if (currentPage === "settings") {
   if (currentPage === "patient-profile") {
     return (
       <PatientProfile
+        key={selectedPatient?.id}
         user={user}
         currentPage={currentPage}
         patient={selectedPatient}
-        clinicHistory={clinicHistory}
         onNavigate={handleNavigate}
         onDeletePatient={handleDeletePatient}
         onLogout={handleLogout}
@@ -762,6 +837,17 @@ if (currentPage === "settings") {
   if (currentPage === "medicine-inventory") {
     return (
       <MedicineInventory
+        user={user}
+        currentPage={currentPage}
+        onNavigate={handleNavigate}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (currentPage === "reports") {
+    return (
+      <Reports
         user={user}
         currentPage={currentPage}
         onNavigate={handleNavigate}

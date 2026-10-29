@@ -1,3 +1,4 @@
+import { apiFetch } from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import {
   ArrowLeft,
@@ -17,7 +18,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getClinicDateInputValue } from "../utils/dateTime";
+import {
+  formatClinicDate,
+  formatClinicTime,
+  getClinicDateInputValue,
+} from "../utils/dateTime";
 
 const API_URL = (
   import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
@@ -27,13 +32,18 @@ function PatientProfile({
   user,
   currentPage,
   patient,
-  clinicHistory,
   onNavigate,
   onDeletePatient,
   onLogout,
 }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [patientHistory, setPatientHistory] = useState([]);
   const [drugTests, setDrugTests] = useState([]);
+  const [dispensations, setDispensations] = useState([]);
+  const [allergies, setAllergies] = useState([]);
+  const [followUps, setFollowUps] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
   const [drugTestsLoading, setDrugTestsLoading] = useState(false);
   const [drugTestError, setDrugTestError] = useState("");
   const [testingDate, setTestingDate] = useState(
@@ -42,16 +52,22 @@ function PatientProfile({
   const [drugTestStatus, setDrugTestStatus] = useState("");
   const [drugTestRemarks, setDrugTestRemarks] = useState("");
   const [savingDrugTest, setSavingDrugTest] = useState(false);
+  const [allergyForm, setAllergyForm] = useState({
+    allergyName: "",
+    reaction: "",
+    severity: "Unknown",
+  });
+  const [followUpForm, setFollowUpForm] = useState({
+    followUpDate: getClinicDateInputValue(),
+    title: "",
+    notes: "",
+  });
+  const [savingHistoryItem, setSavingHistoryItem] = useState(false);
 
   const currentUser = user || {
     name: "Clinic Staff",
     role: "Staff",
   };
-
-  const patientHistory = (clinicHistory || [])
-    .filter((record) => record.patientId === patient?.patientId)
-    .slice()
-    .reverse();
 
   const detailItems = [
     { label: "Student Number", value: patient?.studentNumber },
@@ -75,42 +91,67 @@ function PatientProfile({
 
     let cancelled = false;
 
-    async function loadDrugTests() {
+    async function loadPatientHistory() {
       setDrugTestsLoading(true);
       setDrugTestError("");
+      setHistoryLoading(true);
+      setHistoryError("");
 
       try {
-        const token = localStorage.getItem("udm_auth_token");
+        const token = localStorage.getItem("udm_authenticated");
         if (!token) {
           throw new Error("Your session has expired. Please log in again.");
         }
 
-        const response = await fetch(
-          `${API_URL}/api/patients/${encodeURIComponent(patient.id)}/drug-tests`,
-          { headers: { Authorization: `Bearer ${token}` } },
+        const response = await apiFetch(
+          `${API_URL}/api/patients/${encodeURIComponent(patient.id)}/history`,
+          { headers: {} },
         );
         const result = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(result.message || "Unable to load drug test results.");
+          throw new Error(result.message || "Unable to load patient history.");
         }
 
         if (!cancelled) {
+          const assessments = Array.isArray(result.assessments)
+            ? result.assessments
+            : [];
+          setPatientHistory(
+            assessments.map((record) => ({
+              ...record,
+              date: formatClinicDate(record.created_at),
+              time: formatClinicTime(record.created_at),
+              patientId: patient.patientId,
+              bloodPressure: record.blood_pressure,
+              heartRate: record.heart_rate,
+              bmiStatus: record.bmi_status,
+            })),
+          );
           setDrugTests(Array.isArray(result.drugTests) ? result.drugTests : []);
+          setDispensations(
+            Array.isArray(result.dispensations) ? result.dispensations : [],
+          );
+          setAllergies(Array.isArray(result.allergies) ? result.allergies : []);
+          setFollowUps(Array.isArray(result.followUps) ? result.followUps : []);
         }
       } catch (error) {
         if (!cancelled) {
           setDrugTestError(error.message || "Unable to load drug test results.");
+          setHistoryError(error.message || "Unable to load patient history.");
         }
       } finally {
-        if (!cancelled) setDrugTestsLoading(false);
+        if (!cancelled) {
+          setDrugTestsLoading(false);
+          setHistoryLoading(false);
+        }
       }
     }
 
-    loadDrugTests();
+    loadPatientHistory();
     return () => {
       cancelled = true;
     };
-  }, [patient?.id]);
+  }, [patient?.id, patient?.patientId]);
 
   const handleDrugTestSubmit = async (event) => {
     event.preventDefault();
@@ -119,17 +160,16 @@ function PatientProfile({
     setDrugTestError("");
 
     try {
-      const token = localStorage.getItem("udm_auth_token");
+      const token = localStorage.getItem("udm_authenticated");
       if (!token) {
         throw new Error("Your session has expired. Please log in again.");
       }
 
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_URL}/api/patients/${encodeURIComponent(patient.id)}/drug-tests`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -145,12 +185,129 @@ function PatientProfile({
       }
 
       setDrugTests((previous) => [result.drugTest, ...previous]);
+      setHistoryError(result.auditWarning || "");
       setDrugTestStatus("");
       setDrugTestRemarks("");
     } catch (error) {
       setDrugTestError(error.message || "Unable to save the drug test result.");
     } finally {
       setSavingDrugTest(false);
+    }
+  };
+
+  const postPatientHistoryItem = async (path, method, body) => {
+    const token = localStorage.getItem("udm_authenticated");
+
+    if (!token) {
+      throw new Error("Your session has expired. Please log in again.");
+    }
+
+    const response = await apiFetch(
+      `${API_URL}/api/patients/${encodeURIComponent(patient.id)}/${path}`,
+      {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      },
+    );
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.message || "Unable to update patient history.");
+    }
+
+    if (result.auditWarning) {
+      setHistoryError(result.auditWarning);
+    }
+
+    return result;
+  };
+
+  const handleAddAllergy = async (event) => {
+    event.preventDefault();
+    if (!patient?.id || savingHistoryItem) return;
+
+    setSavingHistoryItem(true);
+    setHistoryError("");
+
+    try {
+      const result = await postPatientHistoryItem(
+        "allergies",
+        "POST",
+        allergyForm,
+      );
+      setAllergies((previous) => [result.allergy, ...previous]);
+      setAllergyForm({
+        allergyName: "",
+        reaction: "",
+        severity: "Unknown",
+      });
+    } catch (error) {
+      setHistoryError(error.message || "Unable to save the allergy.");
+    } finally {
+      setSavingHistoryItem(false);
+    }
+  };
+
+  const handleAllergyStatus = async (allergy, status) => {
+    try {
+      const result = await postPatientHistoryItem(
+        `allergies/${encodeURIComponent(allergy.id)}`,
+        "PUT",
+        { status },
+      );
+      setAllergies((previous) =>
+        previous.map((item) =>
+          item.id === allergy.id ? result.allergy : item,
+        ),
+      );
+    } catch (error) {
+      setHistoryError(error.message || "Unable to update the allergy.");
+    }
+  };
+
+  const handleAddFollowUp = async (event) => {
+    event.preventDefault();
+    if (!patient?.id || savingHistoryItem) return;
+
+    setSavingHistoryItem(true);
+    setHistoryError("");
+
+    try {
+      const result = await postPatientHistoryItem(
+        "follow-ups",
+        "POST",
+        followUpForm,
+      );
+      setFollowUps((previous) => [result.followUp, ...previous]);
+      setFollowUpForm({
+        followUpDate: getClinicDateInputValue(),
+        title: "",
+        notes: "",
+      });
+    } catch (error) {
+      setHistoryError(error.message || "Unable to save the follow-up.");
+    } finally {
+      setSavingHistoryItem(false);
+    }
+  };
+
+  const handleFollowUpStatus = async (followUp, status) => {
+    try {
+      const result = await postPatientHistoryItem(
+        `follow-ups/${encodeURIComponent(followUp.id)}`,
+        "PUT",
+        { status },
+      );
+      setFollowUps((previous) =>
+        previous.map((item) =>
+          item.id === followUp.id ? result.followUp : item,
+        ),
+      );
+    } catch (error) {
+      setHistoryError(error.message || "Unable to update the follow-up.");
     }
   };
 
@@ -212,6 +369,48 @@ function PatientProfile({
     value !== null && value !== undefined && value !== ""
       ? value
       : "--";
+
+  const timelineEvents = [
+    ...patientHistory.map((record) => ({
+      id: `assessment-${record.id}`,
+      type: "Visit assessment",
+      date: record.created_at,
+      detail: record.reason || "Clinic visit",
+    })),
+    ...drugTests.map((test) => ({
+      id: `drug-test-${test.id}`,
+      type: "Drug test",
+      date: test.testing_date || test.created_at,
+      detail: `${test.status}${test.remarks ? ` · ${test.remarks}` : ""}`,
+    })),
+    ...dispensations.map((dispensation) => {
+      const medicine = Array.isArray(dispensation.medicines)
+        ? dispensation.medicines[0]
+        : dispensation.medicines;
+      return {
+        id: `dispensation-${dispensation.id}`,
+        type: "Medicine dispensed",
+        date: dispensation.dispensed_at,
+        detail: `${medicine?.brand_name || medicine?.generic_name || "Medicine"} · ${dispensation.quantity} unit(s) · Batch ${medicine?.batch_number || "—"}`,
+      };
+    }),
+    ...allergies.map((allergy) => ({
+      id: `allergy-${allergy.id}`,
+      type: `Allergy · ${allergy.status}`,
+      date: allergy.created_at,
+      detail: `${allergy.allergy_name} · ${allergy.severity}${allergy.reaction ? ` · ${allergy.reaction}` : ""}`,
+    })),
+    ...followUps.map((followUp) => ({
+      id: `follow-up-${followUp.id}`,
+      type: `Follow-up · ${followUp.status}`,
+      date: followUp.follow_up_date,
+      detail: `${followUp.title}${followUp.notes ? ` · ${followUp.notes}` : ""}`,
+    })),
+  ].sort(
+    (first, second) =>
+      new Date(second.date || 0).getTime() -
+      new Date(first.date || 0).getTime(),
+  );
 
   if (!patient) {
     return (
@@ -356,6 +555,219 @@ function PatientProfile({
           <section className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div className="border-b border-gray-100 px-5 py-5 sm:px-6">
               <h2 className="text-lg font-bold text-gray-900">
+                Allergies
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Record known allergies and reactions for safer care.
+              </p>
+            </div>
+            {historyError && (
+              <p role="alert" className="mx-5 mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 sm:mx-6">
+                {historyError}
+              </p>
+            )}
+            <form
+              onSubmit={handleAddAllergy}
+              className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6"
+            >
+              <label className="text-sm font-semibold text-gray-700">
+                Allergy
+                <input
+                  value={allergyForm.allergyName}
+                  onChange={(event) =>
+                    setAllergyForm((current) => ({
+                      ...current,
+                      allergyName: event.target.value,
+                    }))
+                  }
+                  maxLength={200}
+                  required
+                  className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 font-normal"
+                  placeholder="e.g. Penicillin"
+                />
+              </label>
+              <label className="text-sm font-semibold text-gray-700">
+                Reaction
+                <input
+                  value={allergyForm.reaction}
+                  onChange={(event) =>
+                    setAllergyForm((current) => ({
+                      ...current,
+                      reaction: event.target.value,
+                    }))
+                  }
+                  maxLength={1000}
+                  className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 font-normal"
+                  placeholder="e.g. Rash"
+                />
+              </label>
+              <label className="text-sm font-semibold text-gray-700">
+                Severity
+                <select
+                  value={allergyForm.severity}
+                  onChange={(event) =>
+                    setAllergyForm((current) => ({
+                      ...current,
+                      severity: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 font-normal"
+                >
+                  <option>Unknown</option>
+                  <option>Mild</option>
+                  <option>Moderate</option>
+                  <option>Severe</option>
+                </select>
+              </label>
+              <button
+                type="submit"
+                disabled={savingHistoryItem}
+                className="self-end rounded-xl bg-green-900 px-4 py-3 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-60"
+              >
+                {savingHistoryItem ? "Saving..." : "Add allergy"}
+              </button>
+            </form>
+            {allergies.length > 0 && (
+              <div className="divide-y divide-gray-100 border-t border-gray-100">
+                {allergies.map((allergy) => (
+                  <div
+                    key={allergy.id}
+                    className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6"
+                  >
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {allergy.allergy_name}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {allergy.reaction || "Reaction not recorded"} · {allergy.severity}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleAllergyStatus(
+                          allergy,
+                          allergy.status === "Active" ? "Resolved" : "Active",
+                        )
+                      }
+                      className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      {allergy.status === "Active" ? "Mark resolved" : "Reactivate"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-100 px-5 py-5 sm:px-6">
+              <h2 className="text-lg font-bold text-gray-900">
+                Follow-up plan
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Schedule and track the patient&apos;s next clinic visit.
+              </p>
+            </div>
+            <form
+              onSubmit={handleAddFollowUp}
+              className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6"
+            >
+              <label className="text-sm font-semibold text-gray-700">
+                Follow-up date
+                <input
+                  type="date"
+                  value={followUpForm.followUpDate}
+                  onChange={(event) =>
+                    setFollowUpForm((current) => ({
+                      ...current,
+                      followUpDate: event.target.value,
+                    }))
+                  }
+                  required
+                  className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 font-normal"
+                />
+              </label>
+              <label className="text-sm font-semibold text-gray-700">
+                Reason / task
+                <input
+                  value={followUpForm.title}
+                  onChange={(event) =>
+                    setFollowUpForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                    }))
+                  }
+                  maxLength={150}
+                  required
+                  className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 font-normal"
+                  placeholder="e.g. Recheck blood pressure"
+                />
+              </label>
+              <label className="text-sm font-semibold text-gray-700 sm:col-span-2">
+                Notes
+                <textarea
+                  value={followUpForm.notes}
+                  onChange={(event) =>
+                    setFollowUpForm((current) => ({
+                      ...current,
+                      notes: event.target.value,
+                    }))
+                  }
+                  maxLength={2000}
+                  rows={2}
+                  className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 font-normal"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={savingHistoryItem}
+                className="rounded-xl bg-green-900 px-4 py-3 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-60 sm:col-span-2"
+              >
+                {savingHistoryItem ? "Saving..." : "Schedule follow-up"}
+              </button>
+            </form>
+            {followUps.length > 0 && (
+              <div className="divide-y divide-gray-100 border-t border-gray-100">
+                {followUps.map((followUp) => (
+                  <div
+                    key={followUp.id}
+                    className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6"
+                  >
+                    <div>
+                      <p className="font-semibold text-gray-900">{followUp.title}</p>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {formatClinicDate(followUp.follow_up_date)} · {followUp.status}
+                        {followUp.notes ? ` · ${followUp.notes}` : ""}
+                      </p>
+                    </div>
+                    {followUp.status === "Scheduled" && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleFollowUpStatus(followUp, "Completed")}
+                          className="rounded-lg border border-green-200 px-3 py-2 text-xs font-semibold text-green-900 hover:bg-green-50"
+                        >
+                          Complete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFollowUpStatus(followUp, "Cancelled")}
+                          className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-100 px-5 py-5 sm:px-6">
+              <h2 className="text-lg font-bold text-gray-900">
                 Patient Information
               </h2>
 
@@ -491,6 +903,52 @@ function PatientProfile({
                 </div>
               )}
             </div>
+          </section>
+
+          <section className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-100 px-5 py-5 sm:px-6">
+              <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
+                <ClipboardList size={21} className="text-green-900" />
+                Patient History Timeline
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Visits, test results, medicines, allergies, and follow-ups in date order.
+              </p>
+            </div>
+            {historyLoading ? (
+              <p className="p-5 text-sm text-gray-500">Loading patient history...</p>
+            ) : historyError && timelineEvents.length === 0 ? (
+              <p role="alert" className="p-5 text-sm text-red-700">{historyError}</p>
+            ) : timelineEvents.length === 0 ? (
+              <p className="p-5 text-sm text-gray-500">
+                No clinical history has been recorded for this patient.
+              </p>
+            ) : (
+              <ol className="divide-y divide-gray-100">
+                {timelineEvents.map((event) => (
+                  <li
+                    key={event.id}
+                    className="flex gap-4 px-5 py-4 sm:px-6"
+                  >
+                    <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-green-700 ring-4 ring-green-50" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <h3 className="font-semibold text-gray-900">{event.type}</h3>
+                        <time className="text-xs text-gray-500">
+                          {formatClinicDate(event.date, {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </time>
+                      </div>
+                      <p className="mt-1 break-words text-sm text-gray-600">
+                        {event.detail}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
           </section>
 
           <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">

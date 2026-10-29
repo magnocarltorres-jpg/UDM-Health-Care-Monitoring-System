@@ -1,3 +1,4 @@
+import { apiFetch } from "../utils/api";
 import { useCallback, useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import { formatClinicDate, formatClinicTime, getClinicDateKey } from "../utils/dateTime";
@@ -99,7 +100,7 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
     setIsLoading(true);
     setError("");
 
-    const token = localStorage.getItem("udm_auth_token");
+    const token = localStorage.getItem("udm_authenticated");
 
     if (!token) {
       setError("Your session has expired. Please log in again.");
@@ -108,8 +109,8 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
     }
 
     try {
-      const response = await fetch(API_URL, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await apiFetch(API_URL, {
+        headers: {},
       });
 
       const result = await readResponse(response);
@@ -241,7 +242,7 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
     }
 
     const bmi = Number((weight / (height / 100) ** 2).toFixed(2));
-    const token = localStorage.getItem("udm_auth_token");
+    const token = localStorage.getItem("udm_authenticated");
 
     if (!token) {
       setActionError("Your session has expired. Please log in again.");
@@ -251,10 +252,9 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
     setIsSaving(true);
 
     try {
-      const response = await fetch(`${API_URL}/${editingRecord.id}`, {
+      const response = await apiFetch(`${API_URL}/${editingRecord.id}`, {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -317,7 +317,7 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
 
     if (!confirmed) return;
 
-    const token = localStorage.getItem("udm_auth_token");
+    const token = localStorage.getItem("udm_authenticated");
 
     if (!token) {
       setActionError("Your session has expired. Please log in again.");
@@ -328,9 +328,9 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
     setActionError("");
 
     try {
-      const response = await fetch(`${API_URL}/${record.id}`, {
+      const response = await apiFetch(`${API_URL}/${record.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {},
       });
 
       const result = await readResponse(response);

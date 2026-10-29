@@ -1,3 +1,4 @@
+import { apiFetch } from "../utils/api";
 
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
@@ -31,7 +32,7 @@ function Login({ onLogin }) {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
+      const response = await apiFetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -46,12 +47,13 @@ function Login({ onLogin }) {
         return;
       }
 
-      if (!result.token || !result.user) {
+      if (!result.user) {
         alert("The server returned an invalid login response.");
         return;
       }
 
-      localStorage.setItem("udm_auth_token", result.token);
+      localStorage.removeItem("udm_auth_token");
+      localStorage.setItem("udm_authenticated", "true");
 
       onLogin(result.user, result.mustChangePassword === true);
     } catch (error) {
@@ -78,7 +80,7 @@ function Login({ onLogin }) {
     setForgotLoading(true);
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_URL}/api/auth/forgot-password`,
         {
           method: "POST",
