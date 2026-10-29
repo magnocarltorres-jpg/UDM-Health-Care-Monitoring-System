@@ -2581,7 +2581,7 @@ app.post(
       if (
         staffIdError ||
         typeof generatedStaffId !== "string" ||
-        !/^StaffID-\d{3,}$/.test(generatedStaffId)
+        !/^(NUR|DOC)-\d{3,}$/.test(generatedStaffId)
       ) {
         console.error(
           "Staff ID generation failed:",
@@ -2644,7 +2644,7 @@ app.post(
         if (
           nextStaffId.error ||
           typeof nextStaffId.data !== "string" ||
-          !/^StaffID-\d{3,}$/.test(nextStaffId.data)
+          !/^(NUR|DOC)-\d{3,}$/.test(nextStaffId.data)
         ) {
           console.error(
             "Staff ID regeneration failed:",

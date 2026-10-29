@@ -61,12 +61,12 @@ The administrator must then share the initial password securely.
 The public contact form continues to use Resend and requires `RESEND_API_KEY`,
 `EMAIL_FROM`, and `CONTACT_EMAIL`.
 
-## Sequential staff IDs
+## Role-specific staff IDs
 
 Apply
-[`backend/migrations/20261029_sequential_staff_ids.sql`](./backend/migrations/20261029_sequential_staff_ids.sql)
-in the Supabase SQL Editor before deploying the backend update. New staff
-accounts receive one shared sequential ID (`StaffID-001`, `StaffID-002`, and so
-on) across Nurse and Doctor roles. The database sequence is initialized from
-the highest existing `StaffID-###` value and prevents IDs from being reused
-after a staff account is deleted.
+[`backend/migrations/20261029_role_prefixed_staff_ids.sql`](./backend/migrations/20261029_role_prefixed_staff_ids.sql)
+in the Supabase SQL Editor before deploying the backend update. New Nurse
+accounts receive sequential `NUR-###` IDs and Doctor accounts receive
+sequential `DOC-###` IDs. Each sequence starts after the highest existing ID
+with its role prefix and does not reuse IDs after an account is deleted.
+Existing `StaffID-###` account IDs are not changed.
