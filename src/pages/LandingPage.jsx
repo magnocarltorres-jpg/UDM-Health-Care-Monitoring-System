@@ -32,6 +32,15 @@ const [isSubmittingContact, setIsSubmittingContact] = useState(false);
   const observerRef = useRef(null);
 
   useEffect(() => {
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, []);
+
+  useEffect(() => {
     const elements = document.querySelectorAll(".scroll-animate");
 
     if (!("IntersectionObserver" in window)) {
@@ -171,7 +180,7 @@ const handleContactSubmit = async (event) => {
             </div>
           </a>
 
-          <nav className="hidden items-center gap-7 md:flex">
+          <nav className="hidden items-center gap-7 lg:flex">
             {navigation.map((item, index) => (
               <a
                 key={item.label}
@@ -198,10 +207,11 @@ const handleContactSubmit = async (event) => {
 
             <button
               type="button"
+              aria-controls="landing-navigation"
               aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((previous) => !previous)}
-              className="rounded-lg p-2 text-green-950 transition hover:bg-green-50 md:hidden"
+              className="rounded-lg p-2 text-green-950 transition hover:bg-green-50 lg:hidden"
             >
               {menuOpen ? <X size={23} /> : <Menu size={23} />}
             </button>
@@ -209,7 +219,10 @@ const handleContactSubmit = async (event) => {
         </div>
 
         {menuOpen && (
-          <nav className="border-t border-green-100 bg-white px-4 py-3 shadow-lg md:hidden">
+          <nav
+            id="landing-navigation"
+            className="border-t border-green-100 bg-white px-4 py-3 shadow-lg lg:hidden"
+          >
             {navigation.map((item) => (
               <a
                 key={item.label}

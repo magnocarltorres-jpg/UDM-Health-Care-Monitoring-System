@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import clinicLogo from "../assets/clinic.png";
 import {
   LayoutDashboard,
@@ -17,6 +17,30 @@ import {
 
 function Sidebar({ currentPage, onNavigate, user, onLogout }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    const closeOnDesktop = (event) => {
+      if (event.matches) setMobileOpen(false);
+    };
+    const desktopQuery = window.matchMedia("(min-width: 1024px)");
+
+    document.addEventListener("keydown", closeOnEscape);
+    desktopQuery.addEventListener("change", closeOnDesktop);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+      desktopQuery.removeEventListener("change", closeOnDesktop);
+    };
+  }, [mobileOpen]);
 
   const currentUser = user || {
     name: "Clinic Staff",
@@ -166,7 +190,7 @@ function Sidebar({ currentPage, onNavigate, user, onLogout }) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-green-100 bg-white px-4 shadow-sm md:hidden">
+      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-green-100 bg-white px-4 shadow-sm lg:hidden">
         <div className="flex min-w-0 items-center gap-2">
           <img
             src={clinicLogo}
@@ -181,6 +205,7 @@ function Sidebar({ currentPage, onNavigate, user, onLogout }) {
         <button
           type="button"
           onClick={() => setMobileOpen(!mobileOpen)}
+          aria-controls="staff-navigation"
           aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
           aria-expanded={mobileOpen}
           className="rounded-lg p-2 text-green-900 transition-colors hover:bg-green-50"
@@ -189,7 +214,7 @@ function Sidebar({ currentPage, onNavigate, user, onLogout }) {
         </button>
       </header>
 
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-green-900 text-white md:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-green-900 text-white lg:flex">
         {sidebarContent}
       </aside>
 
@@ -198,15 +223,17 @@ function Sidebar({ currentPage, onNavigate, user, onLogout }) {
           type="button"
           aria-label="Close navigation menu"
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-green-900 text-white shadow-2xl transition-transform duration-300 md:hidden ${
+        id="staff-navigation"
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-green-900 text-white shadow-2xl transition-transform duration-300 lg:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         aria-hidden={!mobileOpen}
+        inert={!mobileOpen}
       >
         <div className="flex items-center justify-end px-4 pt-3">
           <button

@@ -490,6 +490,9 @@ function Pagination({ page, pageCount, total, onChange }) {
 export default function AdminPanel({ user, onLogout }) {
   const [activePage, setActivePage] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() =>
+    window.matchMedia("(min-width: 1024px)").matches,
+  );
 
   const [staff, setStaff] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -513,6 +516,34 @@ export default function AdminPanel({ user, onLogout }) {
 
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [tempPassword, setTempPassword] = useState(null);
+
+  useEffect(() => {
+    const desktopQuery = window.matchMedia("(min-width: 1024px)");
+    const updateViewport = (event) => {
+      setIsDesktop(event.matches);
+      setSidebarOpen(false);
+    };
+
+    desktopQuery.addEventListener("change", updateViewport);
+    return () => desktopQuery.removeEventListener("change", updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!sidebarOpen || isDesktop) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setSidebarOpen(false);
+    };
+
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [sidebarOpen, isDesktop]);
 
   const currentStaffId = user?.id ?? user?.staffId ?? user?.staff_id ?? null;
   const isCurrentUser = (member) =>
@@ -884,20 +915,23 @@ export default function AdminPanel({ user, onLogout }) {
   /* --------------------------------- Render ---------------------------------- */
 
   return (
-    <div className="min-h-screen bg-[#f6f8f7] text-gray-800 md:flex">
+    <div className="min-h-screen bg-[#f6f8f7] text-gray-800 lg:flex">
       {sidebarOpen && (
         <button
           type="button"
           aria-label="Close sidebar"
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-gray-950/50 backdrop-blur-[2px] md:hidden"
+          className="fixed inset-0 z-40 bg-gray-950/50 backdrop-blur-[2px] lg:hidden"
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col bg-[#123b2c] text-white shadow-xl transition-transform duration-200 md:sticky md:top-0 md:h-screen md:translate-x-0 md:shadow-none ${
+        id="admin-navigation"
+        className={`fixed inset-y-0 left-0 z-50 flex w-[270px] max-w-[85vw] flex-col bg-[#123b2c] text-white shadow-xl transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
+        aria-hidden={!sidebarOpen && !isDesktop}
+        inert={!sidebarOpen && !isDesktop}
       >
         <div className="border-b border-white/10 px-6 py-6">
           <div className="flex items-center gap-3">
@@ -984,11 +1018,13 @@ export default function AdminPanel({ user, onLogout }) {
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
-                aria-label="Open navigation"
-                onClick={() => setSidebarOpen(true)}
-                className="rounded-xl border border-gray-200 p-2.5 text-gray-700 transition hover:bg-gray-100 md:hidden"
+                aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
+                aria-controls="admin-navigation"
+                aria-expanded={sidebarOpen}
+                onClick={() => setSidebarOpen((open) => !open)}
+                className="rounded-xl border border-gray-200 p-2.5 text-gray-700 transition hover:bg-gray-100 lg:hidden"
               >
-                <Menu size={20} />
+                {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
 
               <div className="min-w-0">
