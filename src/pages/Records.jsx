@@ -374,7 +374,7 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
   ];
 
   return (
-    <div className="flex min-h-screen min-w-0 bg-[#f6f8f7]">
+    <div className="flex min-h-screen min-w-0 flex-col bg-[#f6f8f7] lg:flex-row">
       <Sidebar
         user={currentUser}
         currentPage={currentPage}

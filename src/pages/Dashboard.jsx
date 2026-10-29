@@ -120,7 +120,7 @@ function Dashboard({
   );
 
   return (
-    <div className="flex min-h-screen bg-[#f6f8f7] font-sans text-gray-800">
+    <div className="flex min-h-screen flex-col bg-[#f6f8f7] font-sans text-gray-800 lg:flex-row">
       <Sidebar
         user={currentUser}
         currentPage={currentPage}

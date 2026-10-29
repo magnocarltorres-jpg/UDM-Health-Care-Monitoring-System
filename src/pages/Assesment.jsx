@@ -390,7 +390,7 @@ function Assessment({
 
   if (!patient) {
     return (
-      <div className="flex min-h-screen bg-gray-50">
+      <div className="flex min-h-screen flex-col bg-gray-50 lg:flex-row">
         <Sidebar
           user={currentUser}
           currentPage={currentPage}
@@ -426,7 +426,7 @@ function Assessment({
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen flex-col bg-gray-50 lg:flex-row">
       <Sidebar
         user={currentUser}
         currentPage={currentPage}

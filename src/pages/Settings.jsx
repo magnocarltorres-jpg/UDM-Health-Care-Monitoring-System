@@ -43,7 +43,7 @@ function Settings({
   ];
 
   return (
-    <div className="flex min-h-screen min-w-0 bg-slate-50">
+    <div className="flex min-h-screen min-w-0 flex-col bg-slate-50 lg:flex-row">
       <Sidebar
         user={currentUser}
         currentPage={currentPage}
