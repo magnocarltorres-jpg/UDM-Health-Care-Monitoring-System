@@ -12,6 +12,7 @@ import { rateLimit } from "express-rate-limit";
 import {
   getMissingMailjetConfiguration,
   sendAccountCreatedEmail,
+  sendPasswordResetEmail,
 } from "./mailjet.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -2389,7 +2390,7 @@ app.post(
 
       const { data: target, error: staffError } = await supabase
         .from("staff_accounts")
-        .select("id, staff_id, name, role, status")
+        .select("id, staff_id, name, role, status, email")
         .eq("staff_id", request.staff_id)
         .maybeSingle();
 
@@ -2479,25 +2480,53 @@ app.post(
         .select("id")
         .maybeSingle();
 
-      if (updateRequestError || !completedRequest) {
+      const requestStatusUpdated = !updateRequestError && Boolean(completedRequest);
+      let requestStatusFailureMessage = "";
+
+      if (!requestStatusUpdated) {
+        requestStatusFailureMessage =
+          "The password reset request status could not be confirmed. Review the request in the admin panel.";
         console.error(
           "Request status update failed:",
           updateRequestError?.message ||
             "The request was already handled.",
         );
+      }
 
-        return res.status(500).json({
-          message:
-            "The password was reset, but the request status could not be confirmed. Give the temporary password to the staff member privately and review this request.",
-          temporaryPassword,
-          mustChangePassword: true,
-        });
+      let emailSent = false;
+      let emailFailureMessage = "";
+
+      if (typeof target.email === "string" && target.email.trim()) {
+        try {
+          await sendPasswordResetEmail({
+            to: target.email,
+            name: target.name,
+            temporaryPassword,
+            staffId: target.staff_id,
+            role: target.role,
+          });
+          emailSent = true;
+        } catch (mailError) {
+          emailFailureMessage = mailError.message;
+          console.error(
+            "Password reset succeeded, but notification email failed:",
+            mailError.message,
+          );
+        }
+      } else {
+        emailFailureMessage = "No email address is saved for this staff account.";
+        console.error(
+          "Password reset notification was not sent:",
+          emailFailureMessage,
+        );
       }
 
       return res.json({
-        message:
-          `Password reset successfully for ${target.name}. Give the temporary password to the staff member privately; they must change it at the next login.`,
-        temporaryPassword,
+        message: emailSent
+          ? `Password reset successfully for ${target.name}. A temporary password was emailed to the staff member, who must change it at the next login.${requestStatusFailureMessage ? ` ${requestStatusFailureMessage}` : ""}`
+          : `Password reset successfully for ${target.name}, but the email could not be sent. ${emailFailureMessage} Share the temporary password securely with the staff member.${requestStatusFailureMessage ? ` ${requestStatusFailureMessage}` : ""}`,
+        ...(!emailSent ? { temporaryPassword } : {}),
+        emailSent,
         mustChangePassword: true,
       });
     } catch (error) {

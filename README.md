@@ -60,6 +60,10 @@ The account-created email includes the initial password and requires the staff
 member to change it at first login. Because email is not a secure channel,
 administrators should use a unique temporary password and tell the recipient
 to change it immediately.
+When an administrator approves a password reset, the new temporary password
+is also sent to the staff member's saved email address. If no email address is
+saved or Mailjet cannot deliver the message, the admin panel displays the
+temporary password for secure sharing.
 
 The public contact form continues to use Resend and requires `RESEND_API_KEY`,
 `EMAIL_FROM`, and `CONTACT_EMAIL`.

@@ -789,11 +789,10 @@ export default function AdminPanel({ user, onLogout }) {
       );
 
       if (!result.temporaryPassword) {
-        setError(
-          "The server did not return the temporary password. Check the backend response before attempting another reset.",
-        );
+        setNotice(result.message || "Password reset and email sent successfully.");
       } else {
         setTempPassword({ name: staffName, password: result.temporaryPassword });
+        setNotice(result.message || "Password reset. Email delivery failed; securely share the temporary password.");
       }
 
       await Promise.all([loadStaff(), loadRequests()]);
@@ -830,7 +829,7 @@ export default function AdminPanel({ user, onLogout }) {
     setConfirmDialog({
       title: `Reset password for ${staffName}?`,
       message:
-        "A unique temporary password will be generated. The staff member must change it after logging in, and you will need to share it with them privately.",
+        "A unique temporary password will be generated and emailed to the staff member's saved email address. They must change it after logging in. If email delivery fails, the temporary password will be shown to you.",
       confirmLabel: "Reset password",
       tone: "primary",
       onConfirm: () => runPasswordReset(request, staffName),
