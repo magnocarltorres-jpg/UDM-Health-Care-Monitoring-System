@@ -72,3 +72,22 @@ export function getClinicDateKey(value = new Date()) {
 export function getClinicDateInputValue() {
   return getClinicDateKey();
 }
+
+export function getClinicGreeting(value = new Date()) {
+  const date = parseDate(value);
+  if (!date) return "Good day";
+
+  const hour = Number(
+    new Intl.DateTimeFormat("en-PH", {
+      timeZone: CLINIC_TIME_ZONE,
+      hour: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(date)
+      .find(({ type }) => type === "hour")?.value,
+  );
+
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}

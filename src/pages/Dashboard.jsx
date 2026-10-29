@@ -17,7 +17,11 @@ import {
   ClipboardPlus,
 } from "lucide-react";
 import Sidebar from "../components/Sidebar";
-import { formatClinicDate, getClinicDateKey } from "../utils/dateTime";
+import {
+  formatClinicDate,
+  getClinicDateKey,
+  getClinicGreeting,
+} from "../utils/dateTime";
 
 function Dashboard({
   user,
@@ -180,7 +184,7 @@ function Dashboard({
                 </div>
 
                 <h2 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
-                  Good morning, {currentUser.name}!
+                  {getClinicGreeting()}, {currentUser.name}!
                 </h2>
 
                 <p className="mt-3 max-w-xl text-sm leading-7 text-green-50/80 sm:text-base">
