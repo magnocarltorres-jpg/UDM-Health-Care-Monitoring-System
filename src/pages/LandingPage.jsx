@@ -271,7 +271,7 @@ const handleContactSubmit = async (event) => {
                   onClick={onLogin}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-900 px-6 py-3.5 font-bold text-white shadow-lg shadow-green-900/15 transition hover:-translate-y-0.5 hover:bg-green-800"
                 >
-                  Access Clinic System
+                  Get started
                   <ArrowRight size={18} />
                 </button>
 
