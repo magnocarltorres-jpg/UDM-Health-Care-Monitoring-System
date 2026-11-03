@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Privacy Notice Draft | UDM Health Care Monitoring System</title>
+    <style>
+      :root { color-scheme: light; font-family: Arial, sans-serif; color: #172b23; background: #f5f8f6; }
+      body { margin: 0; line-height: 1.65; }
+      main { box-sizing: border-box; max-width: 900px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+      a { color: #17613f; }
+      h1, h2 { color: #123b2c; line-height: 1.25; }
+      .notice { padding: 1rem; border: 1px solid #d97706; border-radius: .75rem; background: #fffbeb; color: #78350f; }
+      .card { margin: 1rem 0; padding: 1.25rem; border: 1px solid #d8e2dc; border-radius: .75rem; background: #fff; }
+      .back { display: inline-block; margin-bottom: 1rem; }
+      li { margin: .35rem 0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="/">Back to UDM Clinic</a>
+      <h1>Privacy Notice</h1>
+      <p class="notice"><strong>Draft — not ready for formal publication.</strong> Universidad De Manila must have its Data Protection Officer or legal reviewer confirm the lawful basis, official privacy contact, retention schedule, and processor/transfer details below before adopting this notice.</p>
+      <p>Draft prepared November 3, 2026. This notice describes the UDM Health Care Monitoring System based on its current implementation and information supplied by its operator. It is not legal advice.</p>
+
+      <section class="card">
+        <h2>Who is responsible</h2>
+        <p>The institution identified by the operator is <strong>Universidad De Manila</strong>. The institution must verify its legal name and whether it is the personal information controller for each activity described here.</p>
+        <p>Privacy contact supplied by the operator: <a href="mailto:magnocarltorres@gmail.com">magnocarltorres@gmail.com</a>. This address has not been verified as an official Data Protection Officer or institutional privacy-office contact. Confirm the official contact before publication.</p>
+      </section>
+
+      <section class="card">
+        <h2>Information the system handles</h2>
+        <ul>
+          <li>Patient/student identifiers and details: student number, patient ID, name, course, year level, age, sex, and address.</li>
+          <li>Guardian details: name, relationship, and contact number.</li>
+          <li>Clinic and sensitive health information: assessment measurements (height, weight, blood pressure, temperature, heart rate, oxygen saturation, and BMI), reason for visit, notes, drug-test dates and results, remarks, and medicine-dispensation records.</li>
+          <li>Staff account information: staff ID, name, role, optional email, profile photo, account status, password hash, and password-reset request details.</li>
+          <li>Contact-form information: name, email address, subject, and message.</li>
+        </ul>
+        <p>Patients, students, guardians, staff, and people submitting contact forms may provide information directly; clinic staff may enter patient and health information while providing clinic services.</p>
+      </section>
+
+      <section class="card">
+        <h2>Purposes and legal basis</h2>
+        <p>The system is used to register and identify patients, support clinic visits and health assessments, record drug-test and medicine-dispensation information, administer staff accounts, handle password-reset requests, and respond to contact inquiries.</p>
+        <p><strong>Legal basis is not yet documented.</strong> The institution's Data Protection Officer must determine and document the applicable lawful basis for each purpose, including processing of sensitive personal information, before publication. Do not assume that consent alone is the appropriate basis.</p>
+      </section>
+
+      <section class="card">
+        <h2>Who may access or process information</h2>
+        <p>Active Nurses and Doctors can access the shared clinic records through the authenticated backend. The current system does not assign patients to individual staff, so clinic access is shared among those roles. Administrators manage staff accounts and password-reset requests.</p>
+        <p>The database is hosted by Supabase. The project's current configured region was shown as Tokyo, Japan; the institution must confirm the region and assess any cross-border transfer requirements. Mailjet is used for staff account emails. Resend is used to deliver public contact-form inquiries. Verify the processors, applicable contracts, data locations, and safeguards before publication. The contact form message is sent to the configured contact recipient through Resend.</p>
+      </section>
+
+      <section class="card">
+        <h2>Retention and storage</h2>
+        <p><strong>No retention schedule has been supplied.</strong> The institution must set and publish retention periods for patient and health records, staff accounts, password-reset requests, contact inquiries, database backups, and security logs, including how deletion or archival is performed. This notice should not be treated as final until those periods are approved.</p>
+        <p>The browser stores a bearer session token in local storage for an eight-hour session. Clinic assessment history is fetched from the authenticated backend and is not intentionally saved in browser local storage. The application removes its legacy local assessment-history cache when it loads.</p>
+      </section>
+
+      <section class="card">
+        <h2>Security</h2>
+        <p>The database has row-level security enabled on application tables, with direct table privileges revoked from public and client roles. The application uses its backend API for records; that API authenticates staff, checks that their account is active, and checks role access. The backend service-role credential bypasses RLS and must remain secret on the server.</p>
+        <p>These controls reduce risk but cannot guarantee absolute security. Staff should not send patient health information through the public contact form.</p>
+      </section>
+
+      <section class="card">
+        <h2>Your privacy rights and requests</h2>
+        <p>Individuals may exercise rights available under applicable Philippine privacy law, subject to its requirements and exceptions. Requests should be sent to the official institutional Data Protection Officer or privacy office. Until the official contact is confirmed, the address above is only the contact supplied by the system operator and is not represented as an official privacy office.</p>
+        <p>The institution should add its approved procedure and contact information for access, correction, objection, erasure or blocking, portability, complaints, and other applicable requests before publication.</p>
+      </section>
+
+      <section class="card">
+        <h2>Children and guardians</h2>
+        <p>Patient records include guardian details and may relate to students under 18. The institution must confirm its procedures and applicable requirements for minors and guardians with its Data Protection Officer before using this draft as a final notice.</p>
+      </section>
+
+      <p><strong>Approval required:</strong> confirm the controller, official privacy contact, legal bases, retention periods, processor list and locations, cross-border safeguards, and rights-request procedure. Publish an approved version only after institutional review.</p>
+    </main>
+  </body>
+</html>

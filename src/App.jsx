@@ -16,6 +16,11 @@ import Settings from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
 import ChangePassword from "./pages/ChangePassword";
 import MedicineInventory from "./pages/MedicineInventory";
+import {
+  formatClinicDate,
+  formatClinicTime,
+  getClinicDateKey,
+} from "./utils/dateTime";
 
 
 const API_URL = (
@@ -80,17 +85,13 @@ function App() {
   const [nursesLoading, setNursesLoading] = useState(false);
   const [nursesError, setNursesError] = useState("");
 
-  const [clinicHistory, setClinicHistory] = useState(() => {
-    try {
-      const savedHistory = localStorage.getItem("udm_clinic_history");
-      return savedHistory ? JSON.parse(savedHistory) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [clinicHistory, setClinicHistory] = useState([]);
+  const [clinicHistoryLoading, setClinicHistoryLoading] = useState(false);
+  const [clinicHistoryError, setClinicHistoryError] = useState("");
 
   const handleLogout = () => {
     localStorage.removeItem("udm_auth_token");
+    localStorage.removeItem("udm_clinic_history");
 
     setUser(null);
     setSelectedPatient(null);
@@ -99,12 +100,15 @@ function App() {
 
     setPatients([]);
     setNurses([]);
+    setClinicHistory([]);
 
     setPatientsError("");
     setNursesError("");
+    setClinicHistoryError("");
 
     setPatientsLoading(false);
     setNursesLoading(false);
+    setClinicHistoryLoading(false);
 
     setShowLogin(false);
     setCurrentPage("dashboard");
@@ -222,11 +226,89 @@ function App() {
   }, [user]);
 
   useEffect(() => {
-    localStorage.setItem(
-      "udm_clinic_history",
-      JSON.stringify(clinicHistory),
-    );
-  }, [clinicHistory]);
+    localStorage.removeItem("udm_clinic_history");
+  }, []);
+
+  useEffect(() => {
+    if (!user || !isClinicStaff(user) || mustChangePassword) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadClinicHistory() {
+      setClinicHistoryLoading(true);
+      setClinicHistoryError("");
+
+      try {
+        const response = await fetch(`${API_URL}/api/assessments`, {
+          headers: getAuthHeaders(),
+          cache: "no-store",
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (response.status === 401 || response.status === 403) {
+          if (!cancelled) handleLogout();
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            result.message || "Unable to load clinic assessment history.",
+          );
+        }
+
+        const assessments = Array.isArray(result.assessments)
+          ? result.assessments
+          : [];
+
+        if (!cancelled) {
+          setClinicHistory(
+            assessments.map((assessment) => {
+              const patient = assessment.patients || {};
+              const createdAt = assessment.created_at;
+
+              return {
+                id: assessment.id,
+                patientId: assessment.patient_identifier,
+                studentNumber:
+                  assessment.student_number || patient.student_number,
+                patientName: patient.name,
+                height: assessment.height,
+                weight: assessment.weight,
+                bloodPressure: assessment.blood_pressure,
+                temperature: assessment.temperature,
+                heartRate: assessment.heart_rate,
+                spo2: assessment.spo2,
+                bmi: assessment.bmi,
+                bmiStatus: assessment.bmi_status,
+                reason: assessment.reason,
+                notes: assessment.notes,
+                date: createdAt ? formatClinicDate(createdAt) : "",
+                time: createdAt ? formatClinicTime(createdAt) : "",
+                dateKey: getClinicDateKey(createdAt),
+              };
+            }),
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Clinic assessment history load failed:", error);
+          setClinicHistoryError(
+            error.message || "Unable to load clinic assessment history.",
+          );
+        }
+      } finally {
+        if (!cancelled) setClinicHistoryLoading(false);
+      }
+    }
+
+    loadClinicHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, mustChangePassword]);
 
   useEffect(() => {
     if (!user || !isClinicStaff(user) || mustChangePassword) {
@@ -325,6 +407,9 @@ function App() {
   }, [user, mustChangePassword, currentPage]);
 
   const handleLogin = (loggedInUser, forcePasswordChange = false) => {
+    setClinicHistory([]);
+    setClinicHistoryLoading(false);
+    setClinicHistoryError("");
     setUser(loggedInUser);
 
     setMustChangePassword(
@@ -607,6 +692,8 @@ function App() {
         user={user}
         currentPage="dashboard"
         clinicHistory={clinicHistory}
+        clinicHistoryLoading={clinicHistoryLoading}
+        clinicHistoryError={clinicHistoryError}
         patients={patients}
         onNavigate={handleNavigate}
         onPatientSelect={handlePatientSelect}
@@ -775,6 +862,8 @@ if (currentPage === "settings") {
       user={user}
       currentPage={currentPage}
       clinicHistory={clinicHistory}
+      clinicHistoryLoading={clinicHistoryLoading}
+      clinicHistoryError={clinicHistoryError}
       patients={patients}
       onNavigate={handleNavigate}
       onPatientSelect={handlePatientSelect}

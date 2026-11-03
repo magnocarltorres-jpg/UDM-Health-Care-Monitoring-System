@@ -40,6 +40,15 @@ checks the staff JWT and account status (and admin role for administrative
 operations). The service-role key bypasses RLS, so keep it only in the backend
 environment and never expose it to the browser.
 
+## User and privacy policies
+
+The public website links to [`public/security-and-user-policy.html`](./public/security-and-user-policy.html)
+and [`public/privacy-policy.html`](./public/privacy-policy.html). The privacy
+notice is explicitly a draft: the institution must confirm its legal basis,
+official privacy contact, retention schedule, processor details, and transfer
+safeguards with its Data Protection Officer before adopting or publishing it as
+an official notice.
+
 ## Staff account credentials
 
 Creating a staff account stores the staff member's email address and sends an

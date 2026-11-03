@@ -29,6 +29,8 @@ function Dashboard({
   onNavigate,
   onLogout,
   clinicHistory,
+  clinicHistoryLoading,
+  clinicHistoryError,
   patients,
   onPatientSelect,
 }) {
@@ -174,6 +176,20 @@ function Dashboard({
         </header>
 
         <main className="mx-auto w-full max-w-[1600px] flex-1 space-y-8 p-4 sm:p-6 lg:p-10">
+          {clinicHistoryLoading && (
+            <p role="status" className="text-sm text-slate-600">
+              Loading clinic assessment history...
+            </p>
+          )}
+          {clinicHistoryError && (
+            <p
+              role="alert"
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+            >
+              {clinicHistoryError}
+            </p>
+          )}
+
           <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#123b2c] via-[#18513b] to-[#24734c] p-6 text-white shadow-lg shadow-green-950/10 sm:p-8 lg:p-10">
             <div className="pointer-events-none absolute -right-16 -top-20 h-72 w-72 rounded-full border border-white/10" />
             <div className="pointer-events-none absolute -right-4 -top-10 h-52 w-52 rounded-full border border-white/10" />

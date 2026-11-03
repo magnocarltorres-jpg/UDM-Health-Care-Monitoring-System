@@ -471,6 +471,9 @@ const handleContactSubmit = async (event) => {
                   <label htmlFor="contactMessage" className="mb-2 block text-sm font-semibold text-slate-700">
                     Message
                   </label>
+                  <p className="mb-2 text-sm text-amber-800">
+                    Do not include patient names, identifiers, or sensitive health information in this public contact form.
+                  </p>
                   <textarea
                     id="contactMessage"
                     name="message"
@@ -507,13 +510,21 @@ const handleContactSubmit = async (event) => {
         </section>
       </main>
 
-     <footer className="bg-white px-5 py-6 sm:px-8">
-  <div className="mx-auto flex max-w-7xl items-center justify-center text-center">
-    <p className="text-xs text-slate-500 sm:text-sm">
-      © 2026 UDM Health Care Monitoring System. All rights reserved.
-    </p>
-  </div>
-</footer>
+      <footer className="bg-white px-5 py-6 sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 text-center">
+          <nav aria-label="Policies" className="flex flex-wrap justify-center gap-5 text-sm">
+            <a className="text-green-900 underline" href="/privacy-policy.html">
+              Privacy notice (draft)
+            </a>
+            <a className="text-green-900 underline" href="/security-and-user-policy.html">
+              Security and user policy
+            </a>
+          </nav>
+          <p className="text-xs text-slate-500 sm:text-sm">
+            © 2026 UDM Health Care Monitoring System. All rights reserved.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
