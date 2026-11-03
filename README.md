@@ -27,6 +27,19 @@ medicine API reads and updates the existing `public.medicines` table, including
 its `brand_name`, `generic_name`, `strength`, `stock_quantity`, and
 `expiration_date` fields.
 
+## Database row-level security
+
+The backend uses a custom staff JWT and a Supabase service-role key; it does not
+use Supabase Auth identities for staff. Apply
+[`backend/migrations/20261103_enable_rls_for_application_tables.sql`](./backend/migrations/20261103_enable_rls_for_application_tables.sql)
+after the clinic-extension migration above in the Supabase SQL Editor (or your
+migration workflow) to enable RLS and revoke direct access for `PUBLIC`, `anon`,
+and `authenticated` on the application tables. No client-role policies are
+created intentionally: app data is accessed through the backend API, which
+checks the staff JWT and account status (and admin role for administrative
+operations). The service-role key bypasses RLS, so keep it only in the backend
+environment and never expose it to the browser.
+
 ## Staff account credentials
 
 Creating a staff account stores the staff member's email address and sends an
