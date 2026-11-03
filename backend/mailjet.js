@@ -15,6 +15,7 @@ const accountCreatedTemplateUrl = new URL(
   "./email-templates/account-created.html",
   import.meta.url,
 );
+const clinicLogoUrl = new URL("../public/clinic.png", import.meta.url);
 
 function getRequiredEnvironmentVariable(name) {
   const value = env[name]?.trim();
@@ -81,7 +82,10 @@ export async function sendAccountCreatedEmail({
   const senderEmail = getRequiredEnvironmentVariable("MAILJET_SENDER_EMAIL");
   const loginUrl = getLoginUrl();
   const fullName = name.trim();
-  const template = await readFile(accountCreatedTemplateUrl, "utf8");
+  const [template, clinicLogo] = await Promise.all([
+    readFile(accountCreatedTemplateUrl, "utf8"),
+    readFile(clinicLogoUrl),
+  ]);
   const variables = {
     fullName,
     loginUrl,
@@ -114,6 +118,14 @@ export async function sendAccountCreatedEmail({
           },
         ],
         Subject: "Your UDM CLINIC Staff Account",
+        InlinedAttachments: [
+          {
+            ContentType: "image/png",
+            Filename: "clinic.png",
+            Base64Content: clinicLogo.toString("base64"),
+            ContentID: "clinic-logo",
+          },
+        ],
         TextPart: [
           `Hello ${fullName},`,
           "",
