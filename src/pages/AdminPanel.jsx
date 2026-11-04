@@ -624,8 +624,8 @@ export default function AdminPanel({ user, onLogout }) {
   const runStatusChange = async (member, nextStatus) => {
     setSaving(true);
     try {
-      const result = await call(`/api/admin/staff/${encodeURIComponent(member.id)}/status`, {
-        method: "PATCH",
+      const result = await call(`/api/admin/staff/${encodeURIComponent(member.id)}`, {
+        method: "PUT",
         body: { status: nextStatus },
       });
 
