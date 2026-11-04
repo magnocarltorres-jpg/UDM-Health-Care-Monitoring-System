@@ -15,8 +15,6 @@ const accountCreatedTemplateUrl = new URL(
   "./email-templates/account-created.html",
   import.meta.url,
 );
-const defaultClinicLogoPublicUrl =
-  "https://udm-health-care-api.onrender.com/clinic-logo.png";
 
 function getRequiredEnvironmentVariable(name) {
   const value = env[name]?.trim();
@@ -63,27 +61,6 @@ function getLoginUrl() {
   return url.toString();
 }
 
-function getClinicLogoPublicUrl() {
-  const value = env.MAILJET_LOGO_URL?.trim() || defaultClinicLogoPublicUrl;
-  let url;
-
-  try {
-    url = new URL(value);
-  } catch {
-    throw new Error("MAILJET_LOGO_URL must be a valid absolute URL.");
-  }
-
-  const isLocalHttp =
-    url.protocol === "http:" &&
-    ["localhost", "127.0.0.1"].includes(url.hostname);
-
-  if (url.protocol !== "https:" && !isLocalHttp) {
-    throw new Error("MAILJET_LOGO_URL must use HTTPS, except for localhost development.");
-  }
-
-  return url.toString();
-}
-
 export async function sendAccountCreatedEmail({
   to,
   name,
@@ -103,7 +80,6 @@ export async function sendAccountCreatedEmail({
   const apiSecret = getRequiredEnvironmentVariable("MAILJET_SECRET_KEY");
   const senderEmail = getRequiredEnvironmentVariable("MAILJET_SENDER_EMAIL");
   getLoginUrl();
-  const clinicLogoPublicUrl = getClinicLogoPublicUrl();
   const fullName = name.trim();
   const template = await readFile(accountCreatedTemplateUrl, "utf8");
   const variables = {
@@ -111,7 +87,6 @@ export async function sendAccountCreatedEmail({
     setupUrl,
     staffId,
     role,
-    clinicLogoUrl: clinicLogoPublicUrl,
   };
   const html = template.replace(
     /\{\{var:([A-Za-z0-9_]+)\}\}/g,
@@ -181,7 +156,6 @@ export async function sendPasswordResetEmail({
   const apiSecret = getRequiredEnvironmentVariable("MAILJET_SECRET_KEY");
   const senderEmail = getRequiredEnvironmentVariable("MAILJET_SENDER_EMAIL");
   getLoginUrl();
-  const clinicLogoPublicUrl = getClinicLogoPublicUrl();
   const safeName = escapeHtml(name.trim());
   const safeStaffId = escapeHtml(staffId);
   const safeRole = escapeHtml(role);
@@ -218,8 +192,8 @@ export async function sendPasswordResetEmail({
   <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Your UDM CLINIC Password Has Been Reset</title></head>
   <body style="margin:0;padding:24px;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#202124;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;">
-      <div style="padding:28px 32px;background:#176b59;color:#ffffff;text-align:center;">
-        <img src="${escapeHtml(clinicLogoPublicUrl)}" alt="UDM Clinic logo" width="88" height="88" style="display:block;width:88px;height:88px;margin:0 auto 18px;border:0;border-radius:50%;background:#ffffff;">
+      <div style="padding:28px 32px;background:#176b59;color:#ffffff;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:bold;letter-spacing:1.5px;">UDM CLINIC</p>
         <h1 style="margin:0;font-size:24px;">Password Reset</h1>
       </div>
       <div style="padding:32px;">
