@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Security and User Policy | UDM Health Care Monitoring System</title>
+    <style>
+      :root { color-scheme: light; font-family: Arial, sans-serif; color: #172b23; background: #f5f8f6; }
+      body { margin: 0; line-height: 1.65; }
+      main { box-sizing: border-box; max-width: 900px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+      a { color: #17613f; }
+      h1, h2 { color: #123b2c; line-height: 1.25; }
+      .notice { padding: 1rem; border: 1px solid #d97706; border-radius: .75rem; background: #fffbeb; color: #78350f; }
+      .card { margin: 1rem 0; padding: 1.25rem; border: 1px solid #d8e2dc; border-radius: .75rem; background: #fff; }
+      .back { display: inline-block; margin-bottom: 1rem; }
+      li { margin: .35rem 0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="/">Back to UDM Clinic</a>
+      <h1>System Security and User Policy</h1>
+      <p class="notice"><strong>For institutional review.</strong> Universidad De Manila should approve this policy, assign an owner for incidents and privacy requests, and align it with its clinic procedures before treating it as an official institutional policy.</p>
+      <p>Applies to administrators, Nurses, Doctors, and other authorized users of the UDM Health Care Monitoring System.</p>
+
+      <section class="card">
+        <h2>Access roles</h2>
+        <ul>
+          <li><strong>Administrators:</strong> manage staff accounts and password-reset requests. Administrative access does not grant clinic-record access in the current API.</li>
+          <li><strong>Nurses and Doctors:</strong> active accounts may use clinic features and access shared clinic records. The system currently has no patient-to-staff assignment restrictions.</li>
+          <li>Inactive, invalid, or expired sessions must not access protected API routes. Staff must change a temporary password before using clinic features.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>System security controls</h2>
+        <ul>
+          <li>Protected API routes validate a signed staff session, re-check active account status, and enforce administrator or clinic-staff role checks.</li>
+          <li>Passwords are stored as bcrypt hashes. Login and password-reset request endpoints are rate-limited.</li>
+          <li>Database row-level security is enabled for application tables. Direct privileges are revoked from public and client roles; there are intentionally no Supabase Auth client policies because staff use the custom backend authentication system.</li>
+          <li>The backend uses a Supabase service-role credential that bypasses RLS. It must remain in backend environment configuration, never in frontend code, browser storage, logs, or source control. Service-role access makes the backend's authorization checks essential.</li>
+          <li>Session tokens are held in browser local storage and expire after eight hours. Users must log out on shared devices and keep browsers and devices under their control.</li>
+          <li>Clinic assessment history is loaded from the authenticated API and is not intentionally persisted in browser local storage. The application clears its legacy local history cache.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Rules for all users</h2>
+        <ul>
+          <li>Use the system only for assigned university clinic duties and only access information needed for those duties.</li>
+          <li>Keep credentials private. Do not share accounts, passwords, session tokens, or verification details. Use a unique password and change temporary passwords immediately.</li>
+          <li>Do not browse records out of curiosity, disclose patient information to unauthorized people, or copy it to personal email, messaging, cloud storage, removable media, or unapproved devices.</li>
+          <li>Do not place patient names, identifiers, diagnoses, health measurements, drug-test results, or other sensitive details in the public contact form.</li>
+          <li>Lock or log out of unattended devices. Use only institution-approved, updated devices and secure connections.</li>
+          <li>Do not attempt to bypass access controls, obtain another user's credentials, or modify or export records without authorization.</li>
+          <li>Report suspected account compromise, unauthorized access, misdirected disclosure, or lost devices promptly to the institution's designated privacy/security contact. The institution must publish its official reporting contact and response procedure.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Administrator responsibilities</h2>
+        <ul>
+          <li>Grant accounts only to authorized staff, assign the correct role, and promptly deactivate accounts when access is no longer needed.</li>
+          <li>Review password-reset requests before approval, share temporary credentials through an approved secure channel, and require a password change at first sign-in.</li>
+          <li>Keep production secrets out of the frontend and repository, rotate credentials after suspected exposure, and limit access to hosting and database consoles.</li>
+          <li>Maintain approved record-retention, backup, incident-response, and access-review procedures. This project's retention and incident-response schedules still require institutional approval.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Enforcement and review</h2>
+        <p>Access may be suspended during an investigation or when a user no longer has authorization. Violations should be handled under applicable university, employment, clinical, and legal procedures. This policy should be reviewed at least annually and whenever roles, vendors, or system architecture change.</p>
+        <p>Current access is shared among active Nurses and Doctors; if the clinic requires individual patient assignment, the system must implement and test that workflow before this policy is changed to promise assigned-record restrictions.</p>
+      </section>
+
+      <p>Draft prepared November 3, 2026. This policy does not replace university rules, clinical protocols, or legal advice.</p>
+    </main>
+  </body>
+</html>
