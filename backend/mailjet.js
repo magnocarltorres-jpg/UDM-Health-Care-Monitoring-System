@@ -172,6 +172,7 @@ export async function sendPasswordResetEmail({
   const safeStaffId = escapeHtml(staffId);
   const safeRole = escapeHtml(role);
   const safeSetupUrl = escapeHtml(setupUrl);
+  const clinicLogo = await readFile(clinicLogoUrl);
   const payload = {
     Messages: [
       {
@@ -186,6 +187,14 @@ export async function sendPasswordResetEmail({
           },
         ],
         Subject: "Your UDM CLINIC Password Has Been Reset",
+        InlinedAttachments: [
+          {
+            ContentType: "image/png",
+            Filename: "clinic.png",
+            Base64Content: clinicLogo.toString("base64"),
+            ContentID: "clinic-logo",
+          },
+        ],
         TextPart: [
           `Hello ${name.trim()},`,
           "",
@@ -205,7 +214,7 @@ export async function sendPasswordResetEmail({
   <body style="margin:0;padding:24px;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#202124;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;">
       <div style="padding:28px 32px;background:#176b59;color:#ffffff;text-align:center;">
-        <img src="https://raw.githubusercontent.com/magnocarltorres-jpg/UDM-Health-Care-Monitoring-System/main/public/clinic.png" alt="UDM Clinic logo" width="88" height="88" style="display:block;width:88px;height:88px;margin:0 auto 18px;border:0;border-radius:50%;background:#ffffff;">
+        <img src="cid:clinic-logo" alt="UDM Clinic logo" width="88" height="88" style="display:block;width:88px;height:88px;margin:0 auto 18px;border:0;border-radius:50%;background:#ffffff;">
         <h1 style="margin:0;font-size:24px;">Password Reset</h1>
       </div>
       <div style="padding:32px;">
