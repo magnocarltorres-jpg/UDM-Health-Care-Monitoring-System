@@ -86,7 +86,12 @@ No Mailjet template ID is needed. Set these backend environment variables in
 - `MAILJET_SECRET_KEY`
 - `MAILJET_SENDER_EMAIL` (a verified Mailjet sender)
 - `MAILJET_SENDER_NAME` (optional; defaults to `UDM Health`)
+- `MAILJET_LOGO_URL` (optional; HTTPS URL for the public clinic logo endpoint)
 - `APP_LOGIN_URL` (the HTTPS URL of the application login page)
+
+The account and password-reset emails load `public/clinic.png` from the backend's
+public `/clinic-logo.png` endpoint. If the backend uses a custom domain, set
+`MAILJET_LOGO_URL` to that domain's HTTPS `/clinic-logo.png` URL.
 
 To send a test email to the configured sender address, run
 `node backend/test-mailjet.js` from the repository root.

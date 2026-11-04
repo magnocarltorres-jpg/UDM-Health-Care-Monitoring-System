@@ -181,6 +181,17 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+app.get("/clinic-logo.png", (_req, res) => {
+  res.type("png");
+  res.set("Cache-Control", "public, max-age=86400");
+  res.sendFile(join(__dirname, "../public/clinic.png"), (error) => {
+    if (error && !res.headersSent) {
+      console.error("Unable to serve the clinic logo:", error.message);
+      res.status(500).end();
+    }
+  });
+});
+
 function authenticateToken(req, res, next) {
   const authorization = req.headers.authorization;
 
