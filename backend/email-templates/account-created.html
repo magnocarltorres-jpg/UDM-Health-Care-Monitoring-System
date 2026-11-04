@@ -3,41 +3,99 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
     <title>Your UDM CLINIC Staff Account</title>
   </head>
-  <body style="margin:0;padding:24px;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#202124;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;">
-      <div style="padding:28px 32px;background:#176b59;color:#ffffff;">
-        <p style="margin:0 0 8px;font-size:13px;font-weight:bold;letter-spacing:1.5px;">UDM CLINIC</p>
-        <h1 style="margin:0;font-size:24px;">Staff Account Created</h1>
-      </div>
-      <div style="padding:32px;">
-        <p style="margin:0 0 16px;">Hello {{var:fullName}},</p>
-        <p style="margin:0 0 20px;line-height:1.6;">
-          Your UDM CLINIC staff account has been created.
-        </p>
-        <div style="margin:0 0 24px;padding:18px 20px;background:#f4f6f8;border-radius:6px;">
-          <p style="margin:0 0 10px;font-weight:bold;">ACCOUNT DETAILS</p>
-          <p style="margin:0 0 8px;">Name: {{var:fullName}}</p>
-          <p style="margin:0 0 8px;">Role: {{var:role}}</p>
-          <p style="margin:0 0 8px;">Staff ID: <strong>{{var:staffId}}</strong></p>
-        </div>
-        <p style="margin:0 0 24px;line-height:1.6;">
-          Set a password using the secure, single-use link below. The link expires in one hour.
-        </p>
-        <p style="margin:0 0 28px;">
-          <a href="{{var:setupUrl}}" style="display:inline-block;padding:13px 22px;background:#176b59;color:#ffffff;text-decoration:none;border-radius:5px;font-weight:bold;">
-            Set your password
-          </a>
-        </p>
-        <p style="margin:0;font-size:13px;line-height:1.5;word-break:break-all;">
-          Keep this link private. It can only be used once.
-        </p>
-        <hr style="margin:28px 0;border:0;border-top:1px solid #e8eaed;">
-        <p style="margin:0;font-size:12px;line-height:1.5;color:#5f6368;">
-          If you were not expecting this account, contact your system administrator.
-        </p>
-      </div>
+  <body style="margin:0;padding:0;background:#f4f6f8;">
+    <!-- Preheader (inbox preview text) -->
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;font-size:1px;line-height:1px;color:#f4f6f8;">
+      Your staff account is ready. Set your password to get started.
     </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f6f8;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#ffffff;border-radius:8px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#202124;">
+
+            <!-- Header -->
+            <tr>
+              <td style="padding:28px 32px;background:#176b59;">
+                <p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:2px;color:#b7dfd4;">UDM CLINIC</p>
+                <h1 style="margin:0;font-size:22px;line-height:1.3;font-weight:700;color:#ffffff;">Your staff account is ready</h1>
+              </td>
+            </tr>
+
+            <!-- Body -->
+            <tr>
+              <td style="padding:32px;">
+                <p style="margin:0 0 12px;font-size:16px;line-height:1.5;">Hello {{var:fullName}},</p>
+                <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#3c4043;">
+                  A UDM CLINIC staff account has been created for you. Here are your details:
+                </p>
+
+                <!-- Account details -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px;background:#f4f6f8;border-radius:6px;">
+                  <tr>
+                    <td style="padding:16px 20px;font-size:14px;line-height:1.5;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="90" style="padding:4px 0;color:#5f6368;">Name</td>
+                          <td style="padding:4px 0;font-weight:600;">{{var:fullName}}</td>
+                        </tr>
+                        <tr>
+                          <td width="90" style="padding:4px 0;color:#5f6368;">Role</td>
+                          <td style="padding:4px 0;font-weight:600;">{{var:role}}</td>
+                        </tr>
+                        <tr>
+                          <td width="90" style="padding:4px 0;color:#5f6368;">Staff ID</td>
+                          <td style="padding:4px 0;font-weight:700;">{{var:staffId}}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#3c4043;">
+                  Use the secure, single-use button below to set your password. It expires in <strong>1 hour</strong>.
+                </p>
+
+                <!-- Button -->
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
+                  <tr>
+                    <td align="center" bgcolor="#176b59" style="border-radius:6px;">
+                      <a href="{{var:setupUrl}}" target="_blank" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:6px;">
+                        Set your password
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Fallback link -->
+                <p style="margin:0 0 6px;font-size:12px;line-height:1.5;color:#5f6368;">
+                  Button not working? Copy and paste this link into your browser:
+                </p>
+                <p style="margin:0 0 20px;font-size:12px;line-height:1.5;word-break:break-all;">
+                  <a href="{{var:setupUrl}}" style="color:#176b59;">{{var:setupUrl}}</a>
+                </p>
+
+                <p style="margin:0;font-size:13px;line-height:1.5;color:#3c4043;">
+                  Keep this link private. It can only be used once.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="padding:20px 32px;border-top:1px solid #e8eaed;">
+                <p style="margin:0;font-size:12px;line-height:1.5;color:#5f6368;">
+                  Didn't expect this account? Contact your system administrator.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>
