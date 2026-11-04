@@ -40,6 +40,22 @@ checks the staff JWT and account status (and admin role for administrative
 operations). The service-role key bypasses RLS, so keep it only in the backend
 environment and never expose it to the browser.
 
+The read-only API schema also includes `medicine_inventory`,
+`generate_patient_id()`, and an `rls_auto_enable` RPC. Apply
+[`backend/migrations/20261104_restrict_exposed_database_resources.sql`](./backend/migrations/20261104_restrict_exposed_database_resources.sql)
+after the RLS migration to deny client-role access to the inventory relation and
+those RPCs while retaining service-role access. The inventory relation is
+handled as a table or view based on its live database object type.
+
+## Password setup links
+
+Before deploying the password setup flow, apply
+[`backend/migrations/20261104_staff_password_setup_tokens.sql`](./backend/migrations/20261104_staff_password_setup_tokens.sql)
+after the migration that creates `public.staff_accounts`. It stores only a hash
+of each setup token, expires links after one hour, and atomically allows a token
+to be redeemed once. The API uses the Supabase service-role key to manage these
+records.
+
 ## User and privacy policies
 
 The public website links to [`public/security-and-user-policy.html`](./public/security-and-user-policy.html)
@@ -52,8 +68,10 @@ an official notice.
 ## Staff account credentials
 
 Creating a staff account stores the staff member's email address and sends an
-account notification using Mailjet. The email contains a sign-in link, Staff ID,
-and initial password. Staff must change the password at first login.
+account notification using Mailjet. The email contains the Staff ID and a
+single-use password setup link that expires after one hour; it never includes a
+password. Password resets use the same flow, and the existing password remains
+valid until the staff member completes setup.
 
 To allow staff records without an email address, apply
 [`backend/migrations/20261027_staff_email_optional.sql`](./backend/migrations/20261027_staff_email_optional.sql)
@@ -73,16 +91,10 @@ No Mailjet template ID is needed. Set these backend environment variables in
 To send a test email to the configured sender address, run
 `node backend/test-mailjet.js` from the repository root.
 
-If these values are missing or Mailjet rejects a send, the staff account is
-still created and the API response reports that the notification was not sent.
-The account-created email includes the initial password and requires the staff
-member to change it at first login. Because email is not a secure channel,
-administrators should use a unique temporary password and tell the recipient
-to change it immediately.
-When an administrator approves a password reset, the new temporary password
-is also sent to the staff member's saved email address. If no email address is
-saved or Mailjet cannot deliver the message, the admin panel displays the
-temporary password for secure sharing.
+If these values are missing or Mailjet rejects a send, a new account is created
+without a usable password setup link. An administrator must use **Reset
+Password** in Staff Management to send a new link. Passwords are never returned
+by the reset API or displayed in the admin panel.
 
 The public contact form continues to use Resend and requires `RESEND_API_KEY`,
 `EMAIL_FROM`, and `CONTACT_EMAIL`.

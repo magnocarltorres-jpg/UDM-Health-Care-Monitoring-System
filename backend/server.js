@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import { createClient } from "@supabase/supabase-js";
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { rateLimit } from "express-rate-limit";
@@ -47,6 +47,16 @@ const forgotPasswordLimiter = rateLimit({
   },
 });
 
+const setPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    message: "Too many password setup attempts. Please try again later.",
+  },
+});
+
 for (const key of [
   "SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
@@ -67,6 +77,47 @@ const supabase = createClient(
     },
   },
 );
+
+async function createPasswordSetupLink(staffAccountId) {
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 60 * 60 * 1000);
+
+  const { error: invalidateError } = await supabase
+    .from("staff_password_setup_tokens")
+    .update({ used_at: now.toISOString() })
+    .eq("staff_account_id", staffAccountId)
+    .is("used_at", null);
+
+  if (invalidateError) {
+    throw new Error(`Unable to invalidate previous setup links: ${invalidateError.message}`);
+  }
+
+  const { error: insertError } = await supabase
+    .from("staff_password_setup_tokens")
+    .insert({
+      staff_account_id: staffAccountId,
+      token_hash: tokenHash,
+      expires_at: expiresAt.toISOString(),
+    });
+
+  if (insertError) {
+    throw new Error(`Unable to create a password setup link: ${insertError.message}`);
+  }
+
+  const appUrl = new URL(process.env.APP_LOGIN_URL);
+  const isLocalHttp =
+    appUrl.protocol === "http:" &&
+    ["localhost", "127.0.0.1"].includes(appUrl.hostname);
+
+  if (appUrl.protocol !== "https:" && !isLocalHttp) {
+    throw new Error("APP_LOGIN_URL must use HTTPS, except for localhost development.");
+  }
+
+  appUrl.hash = new URLSearchParams({ setupToken: token }).toString();
+  return appUrl.toString();
+}
 
 const nursePhotoBucket = "nurse-profiles";
 
@@ -358,11 +409,6 @@ function handleStaffPhotoUpload(req, res, next) {
   });
 }
 
-function getTemporaryPassword() {
-  return `UDM-${randomUUID()}!`;
-}
-
-
 app.post("/api/auth/login", loginLimiter, async (req, res) => {
   try {
     const body = req.body || {};
@@ -575,6 +621,64 @@ app.post(
 
       return res.status(500).json({
         message: "Unable to submit your request right now.",
+      });
+    }
+  },
+);
+
+app.post(
+  "/api/auth/set-password",
+  setPasswordLimiter,
+  async (req, res) => {
+    const body = req.body || {};
+    const token = typeof body.token === "string" ? body.token : "";
+    const password = typeof body.password === "string" ? body.password : "";
+
+    if (!token || token.length > 200) {
+      return res.status(400).json({
+        message: "The password setup link is invalid or has expired.",
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        message: "Your password must be at least 8 characters long.",
+      });
+    }
+
+    try {
+      const tokenHash = createHash("sha256").update(token).digest("hex");
+      const passwordHash = await bcrypt.hash(password, 12);
+      const { data: redeemed, error } = await supabase.rpc(
+        "redeem_staff_password_setup_token",
+        {
+          p_token_hash: tokenHash,
+          p_password_hash: passwordHash,
+        },
+      );
+
+      if (error) {
+        console.error("Password setup failed:", error.message);
+
+        return res.status(500).json({
+          message: "Unable to set your password right now.",
+        });
+      }
+
+      if (redeemed !== true) {
+        return res.status(400).json({
+          message: "The password setup link is invalid, expired, or already used.",
+        });
+      }
+
+      return res.json({
+        message: "Password set successfully. You can now sign in.",
+      });
+    } catch (error) {
+      console.error("Password setup failed:", error.message);
+
+      return res.status(500).json({
+        message: "Unable to set your password right now.",
       });
     }
   },
@@ -2434,30 +2538,20 @@ app.post(
         });
       }
 
-      const temporaryPassword = getTemporaryPassword();
-      const hashedPassword = await bcrypt.hash(
-        temporaryPassword,
-        12,
-      );
-
-      const { error: passwordError } = await supabase
-        .from("staff_accounts")
-        .update({
-          password: hashedPassword,
-          must_change_password: true,
-        })
-        .eq("id", target.id);
-
-      if (passwordError) {
-        console.error(
-          "Password reset failed:",
-          passwordError.message,
-        );
-
-        return res.status(500).json({
-          message: "Unable to reset the staff password.",
+      if (typeof target.email !== "string" || !target.email.trim()) {
+        return res.status(400).json({
+          message: "No email address is saved for this staff account.",
         });
       }
+
+      const setupUrl = await createPasswordSetupLink(target.id);
+      await sendPasswordResetEmail({
+        to: target.email,
+        name: target.name,
+        setupUrl,
+        staffId: target.staff_id,
+        role: target.role,
+      });
 
       const resolvedBy =
         req.staff?.staff_id ||
@@ -2480,54 +2574,21 @@ app.post(
         .select("id")
         .maybeSingle();
 
-      const requestStatusUpdated = !updateRequestError && Boolean(completedRequest);
-      let requestStatusFailureMessage = "";
-
-      if (!requestStatusUpdated) {
-        requestStatusFailureMessage =
-          "The password reset request status could not be confirmed. Review the request in the admin panel.";
+      if (updateRequestError || !completedRequest) {
         console.error(
           "Request status update failed:",
           updateRequestError?.message ||
             "The request was already handled.",
         );
-      }
-
-      let emailSent = false;
-      let emailFailureMessage = "";
-
-      if (typeof target.email === "string" && target.email.trim()) {
-        try {
-          await sendPasswordResetEmail({
-            to: target.email,
-            name: target.name,
-            temporaryPassword,
-            staffId: target.staff_id,
-            role: target.role,
-          });
-          emailSent = true;
-        } catch (mailError) {
-          emailFailureMessage = mailError.message;
-          console.error(
-            "Password reset succeeded, but notification email failed:",
-            mailError.message,
-          );
-        }
-      } else {
-        emailFailureMessage = "No email address is saved for this staff account.";
-        console.error(
-          "Password reset notification was not sent:",
-          emailFailureMessage,
-        );
+        return res.status(500).json({
+          message:
+            "The setup email was sent, but the reset request status could not be confirmed. Review the request in the admin panel.",
+        });
       }
 
       return res.json({
-        message: emailSent
-          ? `Password reset successfully for ${target.name}. A temporary password was emailed to the staff member, who must change it at the next login.${requestStatusFailureMessage ? ` ${requestStatusFailureMessage}` : ""}`
-          : `Password reset successfully for ${target.name}, but the email could not be sent. ${emailFailureMessage} Share the temporary password securely with the staff member.${requestStatusFailureMessage ? ` ${requestStatusFailureMessage}` : ""}`,
-        ...(!emailSent ? { temporaryPassword } : {}),
-        emailSent,
-        mustChangePassword: true,
+        message: `A single-use password setup link was emailed to ${target.name}. The link expires in one hour.`,
+        emailSent: true,
       });
     } catch (error) {
       console.error(
@@ -2562,13 +2623,10 @@ app.post(
       const email =
         typeof body.email === "string" ? body.email.trim() : "";
 
-      const initialPassword =
-        typeof body.password === "string" ? body.password : "";
-
-      if (!name || !email || !role || !initialPassword) {
+      if (!name || !email || !role) {
         return res.status(400).json({
           message:
-            "Name, email, role, and initial password are required.",
+            "Name, email, and role are required.",
         });
       }
 
@@ -2591,12 +2649,6 @@ app.post(
         return res.status(400).json({
           message:
             "Invalid staff role. Only Nurse and Doctor accounts can be created here.",
-        });
-      }
-
-      if (initialPassword.length < 8) {
-        return res.status(400).json({
-          message: "The initial password must contain at least 8 characters.",
         });
       }
 
@@ -2624,7 +2676,7 @@ app.post(
       }
 
       const hashedPassword = await bcrypt.hash(
-        initialPassword,
+        randomBytes(32).toString("base64url"),
         12,
       );
 
@@ -2726,10 +2778,11 @@ app.post(
         );
       } else {
         try {
+          const setupUrl = await createPasswordSetupLink(data.id);
           await sendAccountCreatedEmail({
             to: email,
             name,
-            temporaryPassword: initialPassword,
+            setupUrl,
             staffId: data.staff_id,
             role,
           });
@@ -2744,8 +2797,8 @@ app.post(
 
       return res.status(201).json({
         message: emailSent
-          ? "Staff account created and notification email sent. They must change their initial password at first login."
-          : "Staff account created, but the notification email was not sent. Securely share the initial password with the staff member, who must change it at first login.",
+          ? "Staff account created and a secure password setup link was emailed. The link expires in one hour."
+          : "Staff account created, but the setup email was not sent. Use Reset Password in Staff Management to send a new secure setup link.",
         emailSent,
         staff: mapStaffRecord(data),
       });
@@ -2777,7 +2830,7 @@ app.post(
       const { data: target, error: lookupError } =
         await supabase
           .from("staff_accounts")
-          .select("id, staff_id, name, role, status")
+          .select("id, staff_id, name, role, status, email")
           .eq("id", id)
           .maybeSingle();
 
@@ -2820,47 +2873,23 @@ app.post(
         });
       }
 
-      const temporaryPassword = getTemporaryPassword();
-      const hashedPassword = await bcrypt.hash(
-        temporaryPassword,
-        12,
-      );
-
-      const { data, error } = await supabase
-        .from("staff_accounts")
-        .update({
-          password: hashedPassword,
-          must_change_password: true,
-        })
-        .eq("id", id)
-        .select(
-          "id, staff_id, name, role, status, must_change_password",
-        )
-        .maybeSingle();
-
-      if (error) {
-        console.error(
-          "Password reset failed:",
-          error.message,
-        );
-
-        return res.status(500).json({
-          message: "Unable to reset the staff password.",
+      if (typeof target.email !== "string" || !target.email.trim()) {
+        return res.status(400).json({
+          message: "No email address is saved for this staff account.",
         });
       }
 
-      if (!data) {
-        return res.status(404).json({
-          message: "Staff account not found.",
-        });
-      }
+      const setupUrl = await createPasswordSetupLink(target.id);
+      await sendPasswordResetEmail({
+        to: target.email,
+        name: target.name,
+        setupUrl,
+        staffId: target.staff_id,
+        role: target.role,
+      });
 
       return res.json({
-        message:
-          `Password reset successfully for ${data.name}. Give the temporary password to the staff member privately; they must change it at the next login.`,
-        temporaryPassword,
-        mustChangePassword: true,
-        staff: mapStaffRecord(data),
+        message: `A single-use password setup link was emailed to ${target.name}. The link expires in one hour.`,
       });
     } catch (error) {
       console.error(

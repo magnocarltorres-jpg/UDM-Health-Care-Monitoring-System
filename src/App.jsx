@@ -15,6 +15,7 @@ import EditNurse from "./pages/EditNurse";
 import Settings from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
 import ChangePassword from "./pages/ChangePassword";
+import SetPassword from "./pages/SetPassword";
 import MedicineInventory from "./pages/MedicineInventory";
 import {
   formatClinicDate,
@@ -69,6 +70,7 @@ function isClinicStaff(user) {
 }
 
 function App() {
+  const setupToken = new URLSearchParams(window.location.hash.slice(1)).get("setupToken");
   const [showLogin, setShowLogin] = useState(false);
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [user, setUser] = useState(null);
@@ -658,6 +660,18 @@ function App() {
 
     setCurrentPage("patient-profile");
   };
+
+  if (setupToken) {
+    return (
+      <SetPassword
+        token={setupToken}
+        onComplete={() => {
+          window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}`);
+          setShowLogin(true);
+        }}
+      />
+    );
+  }
 
   if (!showLogin && !user) {
     return <LandingPage onLogin={() => setShowLogin(true)} />;

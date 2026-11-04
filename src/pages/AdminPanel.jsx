@@ -5,16 +5,12 @@ import {
   ArrowUp,
   ArrowUpDown,
   CalendarDays,
-  Check,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
   Clock3,
-  Copy,
-  Eye,
-  EyeOff,
   FileText,
   KeyRound,
   LayoutDashboard,
@@ -46,7 +42,7 @@ const API_URL = (
 const PAGE_SIZE = 8;
 const NOTICE_TIMEOUT_MS = 6000;
 
-const emptyForm = { name: "", email: "", password: "", role: "Nurse" };
+const emptyForm = { name: "", email: "", role: "Nurse" };
 
 async function api(path, { method = "GET", body } = {}) {
   const token = localStorage.getItem("udm_auth_token");
@@ -113,40 +109,6 @@ function getInitials(name) {
     .slice(0, 2)
     .map((part) => part.charAt(0).toUpperCase())
     .join("");
-}
-
-// Cryptographically random, skips look-alike characters (0/O, 1/l/I).
-function generatePassword(length = 12) {
-  const sets = [
-    "ABCDEFGHJKLMNPQRSTUVWXYZ",
-    "abcdefghijkmnpqrstuvwxyz",
-    "23456789",
-    "!@#$%&*?",
-  ];
-  const all = sets.join("");
-  const random = (max) => {
-    const buffer = new Uint32Array(1);
-    crypto.getRandomValues(buffer);
-    return buffer[0] % max;
-  };
-
-  const chars = sets.map((set) => set[random(set.length)]);
-  while (chars.length < length) chars.push(all[random(all.length)]);
-
-  for (let i = chars.length - 1; i > 0; i -= 1) {
-    const j = random(i + 1);
-    [chars[i], chars[j]] = [chars[j], chars[i]];
-  }
-  return chars.join("");
-}
-
-async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -363,65 +325,6 @@ function ConfirmDialog({ dialog, busy, onCancel }) {
   );
 }
 
-function CopyButton({ value, label = "Copy" }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    const ok = await copyToClipboard(value);
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-green-200 hover:bg-green-50 hover:text-green-900"
-    >
-      {copied ? <Check size={15} className="text-green-700" /> : <Copy size={15} />}
-      {copied ? "Copied" : label}
-    </button>
-  );
-}
-
-function TemporaryPasswordDialog({ data, onClose }) {
-  return (
-    <Modal onClose={onClose} labelledBy="temp-password-title" maxWidth="max-w-md">
-      <div className="p-6 sm:p-7">
-        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-green-50 text-green-800">
-          <KeyRound size={22} />
-        </div>
-        <h2 id="temp-password-title" className="text-xl font-bold text-gray-950">
-          Temporary password ready
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-gray-600">
-          {data.name}'s password was reset. Share the password below privately.
-          It will not be shown again, and they must change it at their next login.
-        </p>
-
-        <div className="mt-5 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-          <code className="select-all break-all font-mono text-base font-semibold tracking-wide text-gray-900">
-            {data.password}
-          </code>
-          <CopyButton value={data.password} />
-        </div>
-
-        <div className="mt-6 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl bg-green-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-800"
-          >
-            I've shared it
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
 function SortHeader({ label, sortKey, sort, onSort, className = "" }) {
   const active = sort.key === sortKey;
   const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
@@ -512,10 +415,8 @@ export default function AdminPanel({ user, onLogout }) {
 
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
-  const [showPassword, setShowPassword] = useState(false);
 
   const [confirmDialog, setConfirmDialog] = useState(null);
-  const [tempPassword, setTempPassword] = useState(null);
 
   useEffect(() => {
     const desktopQuery = window.matchMedia("(min-width: 1024px)");
@@ -659,7 +560,6 @@ export default function AdminPanel({ user, onLogout }) {
 
   const openAddForm = () => {
     setForm({ ...emptyForm });
-    setShowPassword(false);
     clearMessages();
     setFormOpen(true);
   };
@@ -678,7 +578,7 @@ export default function AdminPanel({ user, onLogout }) {
 
     const name = form.name.trim();
     const email = form.email.trim();
-    const { password, role } = form;
+    const { role } = form;
 
     if (!name) return setError("Full name is required.");
     if (name.length > 120) return setError("Full name must not exceed 120 characters.");
@@ -686,13 +586,11 @@ export default function AdminPanel({ user, onLogout }) {
       return setError("Please enter a valid email address.");
     }
     if (!["Nurse", "Doctor"].includes(role)) return setError("Please select a valid staff role.");
-    if (password.length < 8) return setError("The password must contain at least 8 characters.");
-
     setSaving(true);
     try {
       const result = await call("/api/admin/staff", {
         method: "POST",
-        body: { name, email, password, role },
+        body: { name, email, role },
       });
 
       const generatedStaffId = result.staff?.staffId ?? result.staff?.staff_id ?? "";
@@ -819,12 +717,7 @@ export default function AdminPanel({ user, onLogout }) {
         { method: "POST" },
       );
 
-      if (!result.temporaryPassword) {
-        setNotice(result.message || "Password reset and email sent successfully.");
-      } else {
-        setTempPassword({ name: staffName, password: result.temporaryPassword });
-        setNotice(result.message || "Password reset. Email delivery failed; securely share the temporary password.");
-      }
+      setNotice(result.message || `A secure password setup link was sent to ${staffName}.`);
 
       await Promise.all([loadStaff(), loadRequests()]);
     } catch (err) {
@@ -860,7 +753,7 @@ export default function AdminPanel({ user, onLogout }) {
     setConfirmDialog({
       title: `Reset password for ${staffName}?`,
       message:
-        "A unique temporary password will be generated and emailed to the staff member's saved email address. They must change it after logging in. If email delivery fails, the temporary password will be shown to you.",
+        "A single-use password setup link will be emailed to the staff member. It expires in one hour. Their existing password remains unchanged until setup is completed.",
       confirmLabel: "Reset password",
       tone: "primary",
       onConfirm: () => runPasswordReset(request, staffName),
@@ -1630,7 +1523,7 @@ export default function AdminPanel({ user, onLogout }) {
               <SectionHeading
                 eyebrow="Account recovery"
                 title="Password reset requests"
-                description="Review requests submitted by Nurses and Doctors. Resetting an account assigns a temporary password and requires the staff member to change it at the next login."
+                description="Review requests submitted by Nurses and Doctors. Approving a request sends a single-use password setup link to the staff member's saved email."
               >
                 <button
                   type="button"
@@ -1781,8 +1674,8 @@ export default function AdminPanel({ user, onLogout }) {
 
                 <div className="border-t border-gray-100 bg-gray-50/70 px-5 py-4">
                   <p className="text-xs leading-5 text-gray-500">
-                    Temporary passwords should be changed immediately after login. This page shows
-                    pending requests only.
+                    Reset requests are reviewed before a single-use setup link is sent. This page
+                    shows pending requests only.
                   </p>
                 </div>
               </div>
@@ -1824,8 +1717,8 @@ export default function AdminPanel({ user, onLogout }) {
                   </div>
                   <h3 className="mt-5 text-lg font-bold text-gray-900">Password recovery</h3>
                   <p className="mt-2 text-sm leading-6 text-gray-500">
-                    Review reset requests before assigning a temporary password. Staff must change
-                    that temporary password before accessing clinic resources.
+                    Review reset requests before sending a single-use setup link. Existing passwords
+                    remain unchanged until the staff member completes setup.
                   </p>
                   <button
                     type="button"
@@ -2046,64 +1939,10 @@ export default function AdminPanel({ user, onLogout }) {
               </select>
             </div>
 
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label htmlFor="staffPassword" className="text-sm font-semibold text-gray-700">
-                  Initial password
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForm((prev) => ({ ...prev, password: generatePassword() }));
-                    setShowPassword(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-800 transition hover:text-green-950"
-                >
-                  <RefreshCw size={13} />
-                  Generate
-                </button>
-              </div>
-
-              <div className="relative">
-                <input
-                  id="staffPassword"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  required
-                  minLength={8}
-                  value={form.password}
-                  onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-                  autoComplete="new-password"
-                  placeholder="At least 8 characters"
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-4 pr-24 font-mono text-sm outline-none transition placeholder:font-sans placeholder:text-gray-400 focus:border-green-700 focus:bg-white focus:ring-4 focus:ring-green-100"
-                />
-                <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
-                  {form.password && (
-                    <button
-                      type="button"
-                      aria-label="Copy password"
-                      title="Copy password"
-                      onClick={() => copyToClipboard(form.password)}
-                      className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-800"
-                    >
-                      <Copy size={16} />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    title={showPassword ? "Hide password" : "Show password"}
-                    onClick={() => setShowPassword((value) => !value)}
-                    className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-800"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              <p className="mt-2 text-xs leading-5 text-gray-500">
-                Share this initial password securely with the staff member. They must change it at
-                first login.
+            <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4">
+              <p className="text-sm leading-6 text-blue-900">
+                The staff member will receive a private, single-use setup link by email that expires
+                in one hour. No password is sent or shared by an administrator.
               </p>
             </div>
 
@@ -2157,9 +1996,6 @@ export default function AdminPanel({ user, onLogout }) {
         />
       )}
 
-      {tempPassword && (
-        <TemporaryPasswordDialog data={tempPassword} onClose={() => setTempPassword(null)} />
-      )}
     </div>
   );
 }

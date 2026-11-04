@@ -65,7 +65,7 @@ function getLoginUrl() {
 export async function sendAccountCreatedEmail({
   to,
   name,
-  temporaryPassword,
+  setupUrl,
   staffId,
   role,
 }) {
@@ -73,14 +73,14 @@ export async function sendAccountCreatedEmail({
     throw new Error("A valid recipient email address is required.");
   }
 
-  if (typeof temporaryPassword !== "string" || temporaryPassword.length < 8) {
-    throw new Error("A valid temporary password is required.");
+  if (typeof setupUrl !== "string" || !setupUrl) {
+    throw new Error("A valid password setup URL is required.");
   }
 
   const apiKey = getRequiredEnvironmentVariable("MAILJET_API_KEY");
   const apiSecret = getRequiredEnvironmentVariable("MAILJET_SECRET_KEY");
   const senderEmail = getRequiredEnvironmentVariable("MAILJET_SENDER_EMAIL");
-  const loginUrl = getLoginUrl();
+  getLoginUrl();
   const fullName = name.trim();
   const [template, clinicLogo] = await Promise.all([
     readFile(accountCreatedTemplateUrl, "utf8"),
@@ -88,10 +88,9 @@ export async function sendAccountCreatedEmail({
   ]);
   const variables = {
     fullName,
-    loginUrl,
+    setupUrl,
     staffId,
     role,
-    temporaryPassword,
   };
   const html = template.replace(
     /\{\{var:([A-Za-z0-9_]+)\}\}/g,
@@ -133,10 +132,9 @@ export async function sendAccountCreatedEmail({
           "",
           `Role: ${role}`,
           `Staff ID: ${staffId}`,
-          `Temporary Password: ${temporaryPassword}`,
           "",
-          `Log in at: ${loginUrl}`,
-          "You must change your password before accessing the clinic system.",
+          "Set your password using this secure, single-use link (expires in one hour):",
+          setupUrl,
         ].join("\n"),
         HTMLPart: html,
       },
@@ -154,7 +152,7 @@ export async function sendAccountCreatedEmail({
 export async function sendPasswordResetEmail({
   to,
   name,
-  temporaryPassword,
+  setupUrl,
   staffId,
   role,
 }) {
@@ -162,18 +160,18 @@ export async function sendPasswordResetEmail({
     throw new Error("A valid recipient email address is required.");
   }
 
-  if (typeof temporaryPassword !== "string" || temporaryPassword.length < 8) {
-    throw new Error("A valid temporary password is required.");
+  if (typeof setupUrl !== "string" || !setupUrl) {
+    throw new Error("A valid password setup URL is required.");
   }
 
   const apiKey = getRequiredEnvironmentVariable("MAILJET_API_KEY");
   const apiSecret = getRequiredEnvironmentVariable("MAILJET_SECRET_KEY");
   const senderEmail = getRequiredEnvironmentVariable("MAILJET_SENDER_EMAIL");
-  const loginUrl = getLoginUrl();
+  getLoginUrl();
   const safeName = escapeHtml(name.trim());
   const safeStaffId = escapeHtml(staffId);
   const safeRole = escapeHtml(role);
-  const safeTemporaryPassword = escapeHtml(temporaryPassword);
+  const safeSetupUrl = escapeHtml(setupUrl);
   const payload = {
     Messages: [
       {
@@ -196,10 +194,9 @@ export async function sendPasswordResetEmail({
           `Name: ${name.trim()}`,
           `Role: ${role}`,
           `Staff ID: ${staffId}`,
-          `Temporary Password: ${temporaryPassword}`,
           "",
-          `Log in at: ${loginUrl}`,
-          "You must change your password at your next login.",
+          "Set a new password using this secure, single-use link (expires in one hour):",
+          setupUrl,
           "If you did not request this change, contact your clinic administrator.",
         ].join("\n"),
         HTMLPart: `<!doctype html>
@@ -219,10 +216,10 @@ export async function sendPasswordResetEmail({
           <p style="margin:0 0 8px;">Name: ${safeName}</p>
           <p style="margin:0 0 8px;">Role: ${safeRole}</p>
           <p style="margin:0 0 8px;">Staff ID: <strong>${safeStaffId}</strong></p>
-          <p style="margin:0;">Temporary Password: <strong>${safeTemporaryPassword}</strong></p>
         </div>
-        <p style="margin:0 0 24px;line-height:1.6;">Log in with the temporary password and change it at your next login.</p>
-        <p style="margin:0 0 28px;"><a href="${escapeHtml(loginUrl)}" style="display:inline-block;padding:13px 22px;background:#176b59;color:#ffffff;text-decoration:none;border-radius:5px;font-weight:bold;">Log in to the clinic system</a></p>
+        <p style="margin:0 0 24px;line-height:1.6;">Use the secure, single-use link below to set a new password. It expires in one hour.</p>
+        <p style="margin:0 0 28px;"><a href="${safeSetupUrl}" style="display:inline-block;padding:13px 22px;background:#176b59;color:#ffffff;text-decoration:none;border-radius:5px;font-weight:bold;">Set your password</a></p>
+        <p style="margin:0 0 28px;word-break:break-all;font-size:12px;">${safeSetupUrl}</p>
         <p style="margin:0;font-size:12px;line-height:1.5;color:#5f6368;">If you did not request this change, contact your clinic administrator immediately.</p>
         <p style="margin:24px 0 0;font-size:12px;font-weight:bold;color:#176b59;">UDM CLINIC</p>
       </div>
