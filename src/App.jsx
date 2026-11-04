@@ -219,10 +219,12 @@ function App() {
       checkAccountStatus();
     };
 
+    const statusCheckInterval = window.setInterval(checkAccountStatus, 15_000);
     window.addEventListener("focus", handleWindowFocus);
 
     return () => {
       cancelled = true;
+      window.clearInterval(statusCheckInterval);
       window.removeEventListener("focus", handleWindowFocus);
     };
   }, [user]);
