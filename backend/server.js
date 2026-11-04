@@ -2751,11 +2751,18 @@ app.post(
             .filter(Boolean)
             .join(" ")
             .toLowerCase();
+          const isStaffIdConflict = conflictDetails.includes("staff_id");
+          const isEmailConflict = conflictDetails.includes("email");
 
           return res.status(409).json({
-            message: conflictDetails.includes("staff_id")
+            code: isEmailConflict
+              ? "STAFF_EMAIL_EXISTS"
+              : isStaffIdConflict
+                ? "STAFF_ID_EXISTS"
+                : "STAFF_ACCOUNT_EXISTS",
+            message: isStaffIdConflict
               ? "Unable to assign a unique Staff ID. Please try again."
-              : conflictDetails.includes("email")
+              : isEmailConflict
                 ? "A staff account already uses this email address."
                 : "A staff account with these details already exists.",
           });

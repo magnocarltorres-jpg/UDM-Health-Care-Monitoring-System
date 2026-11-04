@@ -415,6 +415,7 @@ export default function AdminPanel({ user, onLogout }) {
 
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
+  const [duplicateEmailConflict, setDuplicateEmailConflict] = useState(false);
 
   const [confirmDialog, setConfirmDialog] = useState(null);
 
@@ -530,6 +531,7 @@ export default function AdminPanel({ user, onLogout }) {
   const clearMessages = () => {
     setError("");
     setNotice("");
+    setDuplicateEmailConflict(false);
   };
 
   const navigateTo = (pageName) => {
@@ -604,8 +606,14 @@ export default function AdminPanel({ user, onLogout }) {
       );
       await loadStaff();
     } catch (err) {
-      // Surface the error inside the form's page, keep the modal open to retry.
-      setError(err.message || "Unable to create the staff account.");
+      if (err.code === "STAFF_EMAIL_EXISTS") {
+        setDuplicateEmailConflict(true);
+        setError(
+          "This email is already assigned to a staff account. A second account cannot use the same email address.",
+        );
+      } else {
+        setError(err.message || "Unable to create the staff account.");
+      }
     } finally {
       setSaving(false);
     }
@@ -1882,7 +1890,27 @@ export default function AdminPanel({ user, onLogout }) {
                 className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"
               >
                 <CircleAlert size={17} className="mt-0.5 shrink-0" />
-                <p className="leading-5">{error}</p>
+                <div>
+                  <p className="leading-5">{error}</p>
+                  {duplicateEmailConflict && (
+                    <div className="mt-2">
+                      <p className="leading-5">
+                        If this is the same staff member, have them request a password reset from the
+                        login page, then approve it in Password Reset Requests.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormOpen(false);
+                          navigateTo("Password Reset Requests");
+                        }}
+                        className="mt-2 font-semibold underline underline-offset-2 hover:text-red-950"
+                      >
+                        Open password reset requests
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
