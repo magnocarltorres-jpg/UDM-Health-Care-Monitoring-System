@@ -29,6 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { formatClinicDateTime } from "../utils/dateTime";
+import { getAuthToken } from "../utils/authStorage";
 
 /* -------------------------------------------------------------------------- */
 /*  Config & API helpers                                                      */
@@ -45,7 +46,7 @@ const NOTICE_TIMEOUT_MS = 6000;
 const emptyForm = { name: "", email: "", role: "Nurse" };
 
 async function api(path, { method = "GET", body } = {}) {
-  const token = localStorage.getItem("udm_auth_token");
+  const token = getAuthToken();
 
   if (!token) {
     const error = new Error("Your session has expired. Please log in again.");

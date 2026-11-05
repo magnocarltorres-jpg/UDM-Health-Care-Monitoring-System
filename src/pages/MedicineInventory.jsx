@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, PackagePlus } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import { getClinicDateInputValue } from "../utils/dateTime";
+import { getAuthToken } from "../utils/authStorage";
 
 const API_URL = (
   import.meta.env.VITE_API_URL ||
@@ -26,7 +27,7 @@ function MedicineInventory({ user, currentPage, onNavigate, onLogout }) {
   const [successMessage, setSuccessMessage] = useState("");
 
   const authHeaders = useCallback(() => {
-    const token = localStorage.getItem("udm_auth_token");
+    const token = getAuthToken();
 
     if (!token) {
       throw new Error("Your session has expired. Please log in again.");

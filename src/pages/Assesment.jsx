@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
+import { getAuthToken } from "../utils/authStorage";
 
 const API_URL = (
   import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
@@ -59,7 +60,7 @@ function Assessment({
 
     async function loadMedicines() {
       try {
-        const token = localStorage.getItem("udm_auth_token");
+        const token = getAuthToken();
         if (!token) {
           throw new Error("Your session has expired. Please log in again.");
         }
@@ -224,7 +225,7 @@ function Assessment({
       return;
     }
 
-    const token = localStorage.getItem("udm_auth_token");
+    const token = getAuthToken();
 
     if (!token) {
       setSaveError("Your session has expired. Please log in again.");

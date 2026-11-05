@@ -1,6 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Camera, Trash2, UserRound, LoaderCircle } from "lucide-react";
+import { getAuthToken } from "../utils/authStorage";
 
 
 const API_URL = (
@@ -30,7 +31,7 @@ export default function StaffProfilePhoto({
     setError("");
     setMessage("");
 
-    const token = localStorage.getItem("udm_auth_token");
+    const token = getAuthToken();
 
     if (!token) {
       setError("Your session has expired. Please log in again.");

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getClinicDateInputValue } from "../utils/dateTime";
+import { getAuthToken } from "../utils/authStorage";
 
 const API_URL = (
   import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
@@ -80,7 +81,7 @@ function PatientProfile({
       setDrugTestError("");
 
       try {
-        const token = localStorage.getItem("udm_auth_token");
+        const token = getAuthToken();
         if (!token) {
           throw new Error("Your session has expired. Please log in again.");
         }
@@ -119,7 +120,7 @@ function PatientProfile({
     setDrugTestError("");
 
     try {
-      const token = localStorage.getItem("udm_auth_token");
+      const token = getAuthToken();
       if (!token) {
         throw new Error("Your session has expired. Please log in again.");
       }

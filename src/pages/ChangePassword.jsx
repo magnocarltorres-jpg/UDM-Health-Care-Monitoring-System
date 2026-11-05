@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { LockKeyhole, LogOut } from "lucide-react";
+import { getAuthToken } from "../utils/authStorage";
 
 const API_URL = (
   import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
@@ -38,7 +39,7 @@ function ChangePassword({ user, onPasswordChanged, onLogout }) {
       return;
     }
 
-    const token = localStorage.getItem("udm_auth_token");
+    const token = getAuthToken();
 
     if (!token) {
       setError("Your session has expired. Please log in again.");

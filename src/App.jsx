@@ -22,6 +22,10 @@ import {
   formatClinicTime,
   getClinicDateKey,
 } from "./utils/dateTime";
+import {
+  clearAuthToken,
+  getAuthToken,
+} from "./utils/authStorage";
 
 
 const API_URL = (
@@ -46,7 +50,7 @@ async function readResponse(response) {
 }
 
 function getAuthHeaders() {
-  const token = localStorage.getItem("udm_auth_token");
+  const token = getAuthToken();
 
   if (!token) {
     throw new Error("Your session has expired. Please log in again.");
@@ -92,8 +96,7 @@ function App() {
   const [clinicHistoryError, setClinicHistoryError] = useState("");
 
   const handleLogout = () => {
-    localStorage.removeItem("udm_auth_token");
-    localStorage.removeItem("udm_clinic_history");
+    clearAuthToken();
 
     setUser(null);
     setSelectedPatient(null);
@@ -153,7 +156,7 @@ function App() {
     const checkAccountStatus = async () => {
       if (checking || cancelled || loggingOut) return;
 
-      const token = localStorage.getItem("udm_auth_token");
+      const token = getAuthToken();
 
       if (!token) {
         loggingOut = true;
@@ -228,10 +231,6 @@ function App() {
       window.removeEventListener("focus", handleWindowFocus);
     };
   }, [user]);
-
-  useEffect(() => {
-    localStorage.removeItem("udm_clinic_history");
-  }, []);
 
   useEffect(() => {
     if (!user || !isClinicStaff(user) || mustChangePassword) {

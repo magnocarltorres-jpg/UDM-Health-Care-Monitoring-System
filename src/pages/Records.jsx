@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import { formatClinicDate, formatClinicTime, getClinicDateKey } from "../utils/dateTime";
+import { getAuthToken } from "../utils/authStorage";
 import {
   Search,
   FileText,
@@ -99,7 +100,7 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
     setIsLoading(true);
     setError("");
 
-    const token = localStorage.getItem("udm_auth_token");
+    const token = getAuthToken();
 
     if (!token) {
       setError("Your session has expired. Please log in again.");
@@ -241,7 +242,7 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
     }
 
     const bmi = Number((weight / (height / 100) ** 2).toFixed(2));
-    const token = localStorage.getItem("udm_auth_token");
+    const token = getAuthToken();
 
     if (!token) {
       setActionError("Your session has expired. Please log in again.");
@@ -317,7 +318,7 @@ function Records({ user, currentPage, onNavigate, onViewRecord, onLogout }) {
 
     if (!confirmed) return;
 
-    const token = localStorage.getItem("udm_auth_token");
+    const token = getAuthToken();
 
     if (!token) {
       setActionError("Your session has expired. Please log in again.");

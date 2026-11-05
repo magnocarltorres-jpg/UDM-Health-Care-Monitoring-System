@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import clinicLogo from "../assets/clinic.png";
 import bgclinic from "../assets/bgclinic.jpg";
+import { setAuthToken } from "../utils/authStorage";
 
 const API_URL = (
   import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
@@ -51,7 +52,7 @@ function Login({ onLogin }) {
         return;
       }
 
-      localStorage.setItem("udm_auth_token", result.token);
+      setAuthToken(result.token);
 
       onLogin(result.user, result.mustChangePassword === true);
     } catch (error) {

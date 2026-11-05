@@ -8,6 +8,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import { getAuthToken } from "../utils/authStorage";
 
 function EditPatient({
   user,
@@ -46,7 +47,7 @@ function EditPatient({
 
     async function loadCourses() {
       try {
-        const token = localStorage.getItem("udm_auth_token");
+        const token = getAuthToken();
 
         if (!token) {
           throw new Error("Your session has expired. Please log in again.");
