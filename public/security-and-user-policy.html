@@ -40,7 +40,7 @@
           <li>Passwords are stored as bcrypt hashes. Login and password-reset request endpoints are rate-limited.</li>
           <li>Database row-level security is enabled for application tables. Direct privileges are revoked from public and client roles; there are intentionally no Supabase Auth client policies because staff use the custom backend authentication system.</li>
           <li>The backend uses a Supabase service-role credential that bypasses RLS. It must remain in backend environment configuration, never in frontend code, browser storage, logs, or source control. Service-role access makes the backend's authorization checks essential.</li>
-          <li>Session tokens are held in browser local storage and expire after eight hours. Users must log out on shared devices and keep browsers and devices under their control.</li>
+          <li>Session tokens are held in per-tab session storage and expire after eight hours. Logging out of one tab does not log out a separate tab, but users must log out of every session on shared devices and keep browsers and devices under their control.</li>
           <li>Clinic assessment history is loaded from the authenticated API and is not intentionally persisted in browser local storage. The application clears its legacy local history cache.</li>
         </ul>
       </section>

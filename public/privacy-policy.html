@@ -404,7 +404,8 @@
 
       <p>
         The browser stores a bearer authentication token in
-        local storage for an eight-hour session. Clinic
+        per-tab session storage for an eight-hour session, so logging
+        out in one tab does not clear another tab's session. Clinic
         assessment history is retrieved from the authenticated
         backend and is not intentionally stored in browser
         local storage. The application removes its legacy
