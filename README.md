@@ -112,6 +112,19 @@ only Administrator accounts at `/api/auth/admin/login`. Admin pages under
 also verify the active account and Administrator role on the server; hiding or
 entering a frontend route does not grant API access.
 
+## Cloudflare Pages deployment
+
+Connect this GitHub repository to Cloudflare Pages and use:
+
+- Production branch: `main`
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Root directory: `/`
+
+Cloudflare builds at the domain root and includes SPA rewrites for direct routes
+such as `/admin/login`. The GitHub Pages workflow sets `GITHUB_PAGES=true` to
+build with its repository subpath; do not set that variable in Cloudflare.
+
 ## Role-specific staff IDs
 
 Apply

@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Redirecting...</title>
     <script>
-      const basePath = "/UDM-Health-Care-Monitoring-System/";
-      const requestedPath = window.location.pathname.startsWith(basePath)
-        ? window.location.pathname.slice(basePath.length)
-        : "";
+      const githubBasePath = "/UDM-Health-Care-Monitoring-System/";
+      const isGitHubPages = window.location.pathname.startsWith(githubBasePath);
+      const basePath = isGitHubPages ? githubBasePath : "/";
+      const requestedPath = isGitHubPages
+        ? window.location.pathname.slice(githubBasePath.length)
+        : window.location.pathname.slice(1);
       const route = `/${requestedPath}${window.location.search}${window.location.hash}`;
       window.location.replace(
         `${basePath}?p=${encodeURIComponent(route)}`,

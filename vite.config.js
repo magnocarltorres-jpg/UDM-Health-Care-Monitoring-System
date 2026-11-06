@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
     base:
-        process.env.NODE_ENV === 'production'
+        process.env.GITHUB_PAGES === 'true'
             ? "/UDM-Health-Care-Monitoring-System/"
             : "/",
     plugins: [
