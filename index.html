@@ -6,6 +6,17 @@
     <link rel="icon" type="image/png" href="/clinic.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>UDM Health Care Monitoring System</title>
+    <script>
+      const basePath = "/UDM-Health-Care-Monitoring-System/";
+      const route = new URLSearchParams(window.location.search).get("p");
+      if (route) {
+        window.history.replaceState(
+          null,
+          "",
+          basePath + route.replace(/^\/+/, ""),
+        );
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

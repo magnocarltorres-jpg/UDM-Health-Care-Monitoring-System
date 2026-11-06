@@ -31,6 +31,18 @@ import {
 const API_URL = (
   import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
 ).replace(/\/+$/, "");
+const APP_BASE_PATH =
+  import.meta.env.BASE_URL === "/"
+    ? ""
+    : import.meta.env.BASE_URL.replace(/\/+$/, "");
+
+function getAppPath(pathname = window.location.pathname) {
+  if (APP_BASE_PATH && pathname.startsWith(`${APP_BASE_PATH}/`)) {
+    return pathname.slice(APP_BASE_PATH.length) || "/";
+  }
+
+  return pathname;
+}
 
 async function readResponse(response) {
   const result = await response.json().catch(() => ({}));
@@ -75,7 +87,7 @@ function isClinicStaff(user) {
 
 function App() {
   const setupToken = new URLSearchParams(window.location.hash.slice(1)).get("setupToken");
-  const [pathname, setPathname] = useState(window.location.pathname);
+  const [pathname, setPathname] = useState(getAppPath());
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [user, setUser] = useState(null);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -96,7 +108,8 @@ function App() {
   const [clinicHistoryError, setClinicHistoryError] = useState("");
 
   const navigateToPath = useCallback((path, replace = false) => {
-    window.history[replace ? "replaceState" : "pushState"]({}, "", path);
+    const targetPath = `${APP_BASE_PATH}${path}`;
+    window.history[replace ? "replaceState" : "pushState"]({}, "", targetPath);
     setPathname(path);
   }, []);
 
@@ -126,7 +139,7 @@ function App() {
   }, [navigateToPath]);
 
   useEffect(() => {
-    const handlePopState = () => setPathname(window.location.pathname);
+    const handlePopState = () => setPathname(getAppPath());
     window.addEventListener("popstate", handlePopState);
 
     return () => window.removeEventListener("popstate", handlePopState);
@@ -141,7 +154,7 @@ function App() {
     if (user) return undefined;
 
     if (!getAuthToken()) {
-      window.location.replace("/login");
+      window.location.replace(`${APP_BASE_PATH}/login`);
       return undefined;
     }
 
@@ -162,7 +175,7 @@ function App() {
 
         if (!response.ok || !isAdministrator(result.user)) {
           clearAuthToken();
-          window.location.replace("/login");
+          window.location.replace(`${APP_BASE_PATH}/login`);
           return;
         }
 
@@ -172,7 +185,7 @@ function App() {
         if (!cancelled) {
           console.error("Admin session verification failed:", error);
           clearAuthToken();
-          window.location.replace("/login");
+          window.location.replace(`${APP_BASE_PATH}/login`);
         }
       }
     }

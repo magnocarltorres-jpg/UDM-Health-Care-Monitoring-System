@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redirecting...</title>
+    <script>
+      const basePath = "/UDM-Health-Care-Monitoring-System/";
+      const requestedPath = window.location.pathname.startsWith(basePath)
+        ? window.location.pathname.slice(basePath.length)
+        : "";
+      const route = `/${requestedPath}${window.location.search}${window.location.hash}`;
+      window.location.replace(
+        `${basePath}?p=${encodeURIComponent(route)}`,
+      );
+    </script>
+  </head>
+  <body>
+    <p>Redirecting to the requested page...</p>
+  </body>
+</html>
