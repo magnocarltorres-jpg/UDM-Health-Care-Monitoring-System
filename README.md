@@ -103,7 +103,7 @@ The public contact form continues to use Resend and requires `RESEND_API_KEY`,
 
 Nurses and Doctors sign in at `/login`; successful sign-in routes them to
 `/nurse/dashboard` or `/doctor/dashboard`. Administrator sign-in is separate at
-`/admin/login` and accepts the account's Staff ID or email. The public landing
+`/admin/login` and accepts the account's Staff ID. The public landing
 page does not link to the Administrator login.
 
 The backend accepts only Nurse and Doctor accounts at `/api/auth/login` and

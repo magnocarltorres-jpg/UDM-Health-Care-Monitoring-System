@@ -22,17 +22,11 @@ function Login({ onLogin, mode = "staff" }) {
     if (loading) return;
 
     const formData = new FormData(event.currentTarget);
-    const identity = String(
-      formData.get(isAdminLogin ? "username" : "staffId") || "",
-    ).trim();
+    const identity = String(formData.get("staffId") || "").trim();
     const password = String(formData.get("password") || "");
 
     if (!identity || !password) {
-      alert(
-        isAdminLogin
-          ? "Please enter your Email/Username and Password."
-          : "Please enter your Staff ID and Password.",
-      );
+      alert("Please enter your Staff ID and Password.");
       return;
     }
 
@@ -46,11 +40,7 @@ function Login({ onLogin, mode = "staff" }) {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(
-            isAdminLogin
-              ? { username: identity, password }
-              : { staffId: identity, password },
-          ),
+          body: JSON.stringify({ staffId: identity, password }),
         },
       );
 
@@ -227,21 +217,17 @@ function Login({ onLogin, mode = "staff" }) {
             <form onSubmit={handleLogin}>
               <div className="mb-6">
                 <label
-                  htmlFor={isAdminLogin ? "username" : "staffid"}
+                  htmlFor="staffid"
                   className="mb-2 block text-sm font-medium text-white"
                 >
-                  {isAdminLogin ? "Email or Username" : "Staff ID"}
+                  Staff ID
                 </label>
 
                 <input
-                  id={isAdminLogin ? "username" : "staffid"}
-                  name={isAdminLogin ? "username" : "staffId"}
+                  id="staffid"
+                  name="staffId"
                   type="text"
-                  placeholder={
-                    isAdminLogin
-                      ? "Enter your email or username"
-                      : "Enter your Staff ID"
-                  }
+                  placeholder="Enter your Staff ID"
                   autoComplete="username"
                   required
                   className="w-full rounded-lg border border-green-700 bg-green-800 px-4 py-3 text-white outline-none placeholder:text-white focus:border-white focus:ring-2 focus:ring-green-200"

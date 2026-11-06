@@ -409,15 +409,12 @@ function handleStaffPhotoUpload(req, res, next) {
   });
 }
 
-async function loginStaff(req, res, allowedRoles, allowEmail = false) {
+async function loginStaff(req, res, allowedRoles) {
   try {
     const body = req.body || {};
 
-    const identity = allowEmail
-      ? typeof body.username === "string"
-        ? body.username.trim()
-        : ""
-      : typeof body.staffId === "string"
+    const identity =
+      typeof body.staffId === "string"
         ? body.staffId.trim()
         : "";
 
@@ -428,9 +425,7 @@ async function loginStaff(req, res, allowedRoles, allowEmail = false) {
 
     if (!identity || !password) {
       return res.status(400).json({
-        message: allowEmail
-          ? "Email/username and password are required."
-          : "Staff ID and password are required.",
+        message: "Staff ID and password are required.",
       });
     }
 
@@ -441,17 +436,6 @@ async function loginStaff(req, res, allowedRoles, allowEmail = false) {
       )
       .eq("staff_id", identity)
       .maybeSingle();
-
-    if (!error && !staff && allowEmail && identity.includes("@")) {
-      const emailPattern = identity.replace(/[\\%_]/g, "\\$&");
-      ({ data: staff, error } = await supabase
-        .from("staff_accounts")
-        .select(
-          "id, staff_id, name, role, email, password, profile_image, status, must_change_password",
-        )
-        .ilike("email", emailPattern)
-        .maybeSingle());
-    }
 
     if (error) {
       console.error("Staff lookup failed:", error.message);
@@ -467,9 +451,7 @@ async function loginStaff(req, res, allowedRoles, allowEmail = false) {
       !allowedRoles.includes(String(staff.role ?? "").trim().toLowerCase())
     ) {
       return res.status(401).json({
-        message: allowEmail
-          ? "Invalid email/username or password."
-          : "Invalid Staff ID or password.",
+        message: "Invalid Staff ID or password.",
       });
     }
 
@@ -494,9 +476,7 @@ async function loginStaff(req, res, allowedRoles, allowEmail = false) {
 
     if (!passwordMatches) {
       return res.status(401).json({
-        message: allowEmail
-          ? "Invalid email/username or password."
-          : "Invalid Staff ID or password.",
+        message: "Invalid Staff ID or password.",
       });
     }
 
@@ -536,7 +516,7 @@ app.post("/api/auth/login", loginLimiter, (req, res) =>
 );
 
 app.post("/api/auth/admin/login", loginLimiter, (req, res) =>
-  loginStaff(req, res, ["admin", "administrator"], true),
+  loginStaff(req, res, ["admin", "administrator"]),
 );
 
 app.post(
