@@ -409,12 +409,15 @@ function handleStaffPhotoUpload(req, res, next) {
   });
 }
 
-app.post("/api/auth/login", loginLimiter, async (req, res) => {
+async function loginStaff(req, res, allowedRoles, allowEmail = false) {
   try {
     const body = req.body || {};
 
-    const staffId =
-      typeof body.staffId === "string"
+    const identity = allowEmail
+      ? typeof body.username === "string"
+        ? body.username.trim()
+        : ""
+      : typeof body.staffId === "string"
         ? body.staffId.trim()
         : "";
 
@@ -423,71 +426,79 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
         ? body.password
         : "";
 
-    if (!staffId || !password) {
+    if (!identity || !password) {
       return res.status(400).json({
-        message: "Staff ID and password are required.",
+        message: allowEmail
+          ? "Email/username and password are required."
+          : "Staff ID and password are required.",
       });
     }
 
-    const { data: staff, error } = await supabase
+    let { data: staff, error } = await supabase
       .from("staff_accounts")
       .select(
-        "id, staff_id, name, role, password, profile_image, status, must_change_password",
+        "id, staff_id, name, role, email, password, profile_image, status, must_change_password",
       )
-      .eq("staff_id", staffId)
+      .eq("staff_id", identity)
       .maybeSingle();
+
+    if (!error && !staff && allowEmail && identity.includes("@")) {
+      const emailPattern = identity.replace(/[\\%_]/g, "\\$&");
+      ({ data: staff, error } = await supabase
+        .from("staff_accounts")
+        .select(
+          "id, staff_id, name, role, email, password, profile_image, status, must_change_password",
+        )
+        .ilike("email", emailPattern)
+        .maybeSingle());
+    }
 
     if (error) {
       console.error("Staff lookup failed:", error.message);
 
       return res.status(500).json({
-        message: "Unable to verify staff account.",
+        message: "Unable to verify account.",
       });
     }
 
     if (
       !staff ||
-      String(staff.status ?? "").trim().toLowerCase() !== "active"
+      String(staff.status ?? "").trim().toLowerCase() !== "active" ||
+      !allowedRoles.includes(String(staff.role ?? "").trim().toLowerCase())
     ) {
       return res.status(401).json({
-        code: "ACCOUNT_DEACTIVATED",
-        message:
-          "Invalid Staff ID or password, or the account is inactive.",
+        message: allowEmail
+          ? "Invalid email/username or password."
+          : "Invalid Staff ID or password.",
       });
     }
 
-  
+    const passwordHash =
+      typeof staff.password === "string" ? staff.password : "";
 
-const passwordHash =
-  typeof staff.password === "string" ? staff.password : "";
+    if (!/^\$2[aby]\$\d{2}\$/.test(passwordHash)) {
+      console.error("Login password format diagnostic:", {
+        staffId: staff.staff_id,
+        passwordType: typeof staff.password,
+        passwordLength: passwordHash.length,
+        passwordPrefix: passwordHash.slice(0, 7),
+      });
 
-const supportedBcryptHash =
-  /^\$2[aby]\$\d{2}\$/.test(passwordHash);
+      return res.status(500).json({
+        message:
+          "Unsupported password format. Contact the system administrator.",
+      });
+    }
 
-if (!supportedBcryptHash) {
-  console.error("Login password format diagnostic:", {
-    staffId,
-    passwordType: typeof staff.password,
-    passwordLength: passwordHash.length,
-    passwordPrefix: passwordHash.slice(0, 7),
-  });
+    const passwordMatches = await bcrypt.compare(password, passwordHash);
 
-  return res.status(500).json({
-    message:
-      "Unsupported password format. Contact the system administrator.",
-  });
-}
-
-const passwordMatches = await bcrypt.compare(
-  password,
-  passwordHash,
-);
-
-if (!passwordMatches) {
-  return res.status(401).json({
-    message: "Invalid Staff ID or password.",
-  });
-}
+    if (!passwordMatches) {
+      return res.status(401).json({
+        message: allowEmail
+          ? "Invalid email/username or password."
+          : "Invalid Staff ID or password.",
+      });
+    }
 
     const token = jwt.sign(
       {
@@ -512,13 +523,21 @@ if (!passwordMatches) {
       user: mapStaffRecord(staff, profileImage),
     });
   } catch (error) {
-    console.error("Login failed:", error.message);
+    console.error("Staff login failed:", error.message);
 
     return res.status(500).json({
       message: "An unexpected login error occurred.",
     });
   }
-});
+}
+
+app.post("/api/auth/login", loginLimiter, (req, res) =>
+  loginStaff(req, res, ["nurse", "doctor"]),
+);
+
+app.post("/api/auth/admin/login", loginLimiter, (req, res) =>
+  loginStaff(req, res, ["admin", "administrator"], true),
+);
 
 app.post(
   "/api/auth/forgot-password",

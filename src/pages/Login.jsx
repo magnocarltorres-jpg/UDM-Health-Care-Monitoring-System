@@ -9,7 +9,8 @@ const API_URL = (
   import.meta.env.VITE_API_URL || "https://udm-health-care-api.onrender.com"
 ).replace(/\/+$/, "");
 
-function Login({ onLogin }) {
+function Login({ onLogin, mode = "staff" }) {
+  const isAdminLogin = mode === "admin";
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -21,24 +22,37 @@ function Login({ onLogin }) {
     if (loading) return;
 
     const formData = new FormData(event.currentTarget);
-    const staffId = String(formData.get("staffId") || "").trim();
+    const identity = String(
+      formData.get(isAdminLogin ? "username" : "staffId") || "",
+    ).trim();
     const password = String(formData.get("password") || "");
 
-    if (!staffId || !password) {
-      alert("Please enter your Staff ID and Password.");
+    if (!identity || !password) {
+      alert(
+        isAdminLogin
+          ? "Please enter your Email/Username and Password."
+          : "Please enter your Staff ID and Password.",
+      );
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${API_URL}/api/auth/${isAdminLogin ? "admin/login" : "login"}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(
+            isAdminLogin
+              ? { username: identity, password }
+              : { staffId: identity, password },
+          ),
         },
-        body: JSON.stringify({ staffId, password }),
-      });
+      );
 
       const result = await response.json().catch(() => ({}));
 
@@ -49,6 +63,16 @@ function Login({ onLogin }) {
 
       if (!result.token || !result.user) {
         alert("The server returned an invalid login response.");
+        return;
+      }
+
+      const role = String(result.user.role || "").trim().toLowerCase();
+      const isExpectedRole = isAdminLogin
+        ? ["admin", "administrator"].includes(role)
+        : ["nurse", "doctor"].includes(role);
+
+      if (!isExpectedRole) {
+        alert("Your account is not authorized to use this login page.");
         return;
       }
 
@@ -190,28 +214,34 @@ function Login({ onLogin }) {
           <>
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-white">
-                Authorized Personnel Login
+                {isAdminLogin ? "Administrator Login" : "Nurse & Doctor Login"}
               </h2>
 
               <p className="mt-1 text-sm text-white">
-                Sign in to access the clinic system.
+                {isAdminLogin
+                  ? "Sign in to access the administration panel."
+                  : "Sign in to access the clinic system."}
               </p>
             </div>
 
             <form onSubmit={handleLogin}>
               <div className="mb-6">
                 <label
-                  htmlFor="staffid"
+                  htmlFor={isAdminLogin ? "username" : "staffid"}
                   className="mb-2 block text-sm font-medium text-white"
                 >
-                  Staff ID
+                  {isAdminLogin ? "Email or Username" : "Staff ID"}
                 </label>
 
                 <input
-                  id="staffid"
-                  name="staffId"
+                  id={isAdminLogin ? "username" : "staffid"}
+                  name={isAdminLogin ? "username" : "staffId"}
                   type="text"
-                  placeholder="Enter your Staff ID"
+                  placeholder={
+                    isAdminLogin
+                      ? "Enter your email or username"
+                      : "Enter your Staff ID"
+                  }
                   autoComplete="username"
                   required
                   className="w-full rounded-lg border border-green-700 bg-green-800 px-4 py-3 text-white outline-none placeholder:text-white focus:border-white focus:ring-2 focus:ring-green-200"
@@ -260,13 +290,15 @@ function Login({ onLogin }) {
                   Remember Me
                 </label>
 
-                <button
-                  type="button"
-                  onClick={() => setShowForgotPassword(true)}
-                  className="text-sm text-white hover:underline"
-                >
-                  Forgot Password?
-                </button>
+                {!isAdminLogin && (
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-sm text-white hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                )}
               </div>
 
               <button

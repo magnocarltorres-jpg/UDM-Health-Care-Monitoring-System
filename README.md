@@ -99,6 +99,19 @@ by the reset API or displayed in the admin panel.
 The public contact form continues to use Resend and requires `RESEND_API_KEY`,
 `EMAIL_FROM`, and `CONTACT_EMAIL`.
 
+## Role-specific login and admin routes
+
+Nurses and Doctors sign in at `/login`; successful sign-in routes them to
+`/nurse/dashboard` or `/doctor/dashboard`. Administrator sign-in is separate at
+`/admin/login` and accepts the account's Staff ID or email. The public landing
+page does not link to the Administrator login.
+
+The backend accepts only Nurse and Doctor accounts at `/api/auth/login` and
+only Administrator accounts at `/api/auth/admin/login`. Admin pages under
+`/admin/*` require an active Administrator session. Administrative API routes
+also verify the active account and Administrator role on the server; hiding or
+entering a frontend route does not grant API access.
+
 ## Role-specific staff IDs
 
 Apply

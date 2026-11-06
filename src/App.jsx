@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -75,7 +75,7 @@ function isClinicStaff(user) {
 
 function App() {
   const setupToken = new URLSearchParams(window.location.hash.slice(1)).get("setupToken");
-  const [showLogin, setShowLogin] = useState(false);
+  const [pathname, setPathname] = useState(window.location.pathname);
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [user, setUser] = useState(null);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -95,7 +95,12 @@ function App() {
   const [clinicHistoryLoading, setClinicHistoryLoading] = useState(false);
   const [clinicHistoryError, setClinicHistoryError] = useState("");
 
-  const handleLogout = () => {
+  const navigateToPath = useCallback((path, replace = false) => {
+    window.history[replace ? "replaceState" : "pushState"]({}, "", path);
+    setPathname(path);
+  }, []);
+
+  const handleLogout = useCallback(() => {
     clearAuthToken();
 
     setUser(null);
@@ -115,10 +120,69 @@ function App() {
     setNursesLoading(false);
     setClinicHistoryLoading(false);
 
-    setShowLogin(false);
     setCurrentPage("dashboard");
     setMustChangePassword(false);
-  };
+    navigateToPath("/");
+  }, [navigateToPath]);
+
+  useEffect(() => {
+    const handlePopState = () => setPathname(window.location.pathname);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const isAdminRoute =
+      pathname === "/admin" || pathname.startsWith("/admin/");
+
+    if (!isAdminRoute || pathname === "/admin/login") return undefined;
+
+    if (user) return undefined;
+
+    if (!getAuthToken()) {
+      window.location.replace("/login");
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function restoreAdminSession() {
+      try {
+        const response = await fetch(`${API_URL}/api/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`,
+            "Cache-Control": "no-cache",
+          },
+          cache: "no-store",
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (cancelled) return;
+
+        if (!response.ok || !isAdministrator(result.user)) {
+          clearAuthToken();
+          window.location.replace("/login");
+          return;
+        }
+
+        setUser(result.user);
+        setMustChangePassword(result.user.mustChangePassword === true);
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Admin session verification failed:", error);
+          clearAuthToken();
+          window.location.replace("/login");
+        }
+      }
+    }
+
+    restoreAdminSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, user]);
 
   const handleProfileUpdated = (updatedStaff) => {
     if (!updatedStaff?.id) return;
@@ -230,7 +294,7 @@ function App() {
       window.clearInterval(statusCheckInterval);
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [user]);
+  }, [handleLogout, user]);
 
   useEffect(() => {
     if (!user || !isClinicStaff(user) || mustChangePassword) {
@@ -311,7 +375,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [user, mustChangePassword]);
+  }, [handleLogout, user, mustChangePassword]);
 
   useEffect(() => {
     if (!user || !isClinicStaff(user) || mustChangePassword) {
@@ -359,7 +423,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [user, mustChangePassword]);
+  }, [handleLogout, user, mustChangePassword]);
 
   useEffect(() => {
     if (!user || !isClinicStaff(user) || mustChangePassword) {
@@ -407,9 +471,15 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [user, mustChangePassword, currentPage]);
+  }, [currentPage, handleLogout, user, mustChangePassword]);
 
   const handleLogin = (loggedInUser, forcePasswordChange = false) => {
+    if (!isAdministrator(loggedInUser) && !isClinicStaff(loggedInUser)) {
+      clearAuthToken();
+      window.alert("Your account is not authorized to use this login page.");
+      return;
+    }
+
     setClinicHistory([]);
     setClinicHistoryLoading(false);
     setClinicHistoryError("");
@@ -419,13 +489,16 @@ function App() {
       Boolean(forcePasswordChange || loggedInUser?.mustChangePassword),
     );
 
-    setShowLogin(false);
     setSelectedPatient(null);
     setSelectedNurse(null);
     setSelectedAssessment(null);
 
-    setCurrentPage(
-      isAdministrator(loggedInUser) ? "admin-panel" : "dashboard",
+    setCurrentPage("dashboard");
+    navigateToPath(
+      isAdministrator(loggedInUser)
+        ? "/admin/dashboard"
+        : `/${getUserRole(loggedInUser)}/dashboard`,
+      true,
     );
   };
 
@@ -667,19 +740,51 @@ function App() {
       <SetPassword
         token={setupToken}
         onComplete={() => {
-          window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}`);
-          setShowLogin(true);
+          navigateToPath("/login", true);
         }}
       />
     );
   }
 
-  if (!showLogin && !user) {
-    return <LandingPage onLogin={() => setShowLogin(true)} />;
+  const isAdminRoute =
+    pathname === "/admin" || pathname.startsWith("/admin/");
+
+  if (pathname === "/admin/login" && !user) {
+    return <Login mode="admin" onLogin={handleLogin} />;
   }
 
-  if (showLogin && !user) {
+  if (isAdminRoute && user && !isAdministrator(user)) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+        <section className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-8 text-center shadow-lg">
+          <h1 className="text-2xl font-bold text-gray-900">Access denied</h1>
+          <p className="mt-3 text-sm text-gray-600">
+            Administrator access is required to view this page.
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              navigateToPath(`/${getUserRole(user)}/dashboard`, true)
+            }
+            className="mt-6 rounded-lg bg-green-900 px-5 py-3 font-semibold text-white hover:bg-green-800"
+          >
+            Return to your dashboard
+          </button>
+        </section>
+      </main>
+    );
+  }
+
+  if (isAdminRoute && !user) {
+    return null;
+  }
+
+  if (pathname === "/login" && !user) {
     return <Login onLogin={handleLogin} />;
+  }
+
+  if (!user) {
+    return <LandingPage onLogin={() => navigateToPath("/login")} />;
   }
 
   if (mustChangePassword && user) {
@@ -689,15 +794,13 @@ function App() {
         onLogout={handleLogout}
         onPasswordChanged={() => {
           setMustChangePassword(false);
-          setCurrentPage(
-            isAdministrator(user) ? "admin-panel" : "dashboard",
-          );
+          setCurrentPage("dashboard");
         }}
       />
     );
   }
 
-  if (isAdministrator(user)) {
+  if (isAdminRoute && isAdministrator(user)) {
     return <AdminPanel user={user} onLogout={handleLogout} />;
   }
 
